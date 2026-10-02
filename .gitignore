@@ -1,0 +1,10 @@
+.env
+*.bak
+__pycache__/
+*.pyc
+*.log
+bot_sin_excusas.json
+workflow_update.json
+wf.json
+wf_fix.json
+wf_result.json
