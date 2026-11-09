@@ -1,0 +1,18 @@
+#!/bin/bash
+# Crea un proyecto de short a partir de la plantilla.
+# Uso: nuevo-short short_14_tema
+source "$(dirname "$(readlink -f "$0")")/_comun.sh"
+
+[ -z "$1" ] && { echo "Uso: nuevo-short <nombre>"; exit 1; }
+[[ "$1" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "❌ Nombre inválido: usa solo letras, números, _ y -"; exit 1; }
+DIR="$PROYECTOS/$1"
+[ -d "$DIR" ] && { echo "❌ Ya existe: $DIR"; exit 1; }
+[ -d "$PLANTILLA" ] || { echo "❌ No existe la plantilla en $PLANTILLA"; exit 1; }
+
+mkdir -p "$DIR"/voz "$DIR"/imagenes "$DIR"/musica
+[ -d "$PLANTILLA/fuentes" ] && cp -r "$PLANTILLA/fuentes" "$DIR/"
+[ -d "$PLANTILLA/imagenes" ] && cp -r "$PLANTILLA/imagenes/." "$DIR/imagenes/"
+[ -d "$PLANTILLA/voz" ] && cp -r "$PLANTILLA/voz/." "$DIR/voz/"
+
+echo "✅ Proyecto creado: $DIR"
+echo "   Sube: imágenes → imagenes/ | voces → voz/ | música → musica/ | guia.json → raíz"

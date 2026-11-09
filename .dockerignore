@@ -1,0 +1,8 @@
+.git
+.env
+datos
+panel
+__pycache__
+*.bak
+*.log
+*.md

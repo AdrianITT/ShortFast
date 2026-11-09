@@ -65,8 +65,8 @@ proyectos_largos/<nombre>/
 
 ## 5.1 Pendientes previos (antes de la Fase 0)
 
-- [ ] Probar el caché SHA256 de `/probe` en Docker (hoy solo probado con stubs de FastAPI)
-- [x] Cómo se monta el código: verificado el 2026-10-01. `/home/adrian/ffmpeg-api` se monta en `/app` y `/DATA/video-editor` en `/data` (el Dockerfile queda desactualizado: solo copia `main.py`, pero el volumen cubre el resto). Los archivos nuevos se despliegan dejándolos en esta carpeta.
+- [x] Probar el caché SHA256 de `/probe` en Docker: verificado el 2026-10-02 (1ª llamada 1.57 s `cache:false`, 2ª 0.26 s `cache:true`; copia con mismo contenido reutiliza; 404 y 400 correctos)
+- [x] Cómo se monta el código: verificado el 2026-10-01. `/home/adrian/ffmpeg-api` se monta en `/app` y `/DATA/video-editor` en `/data` (el Dockerfile se actualizó el 2026-10-02: ahora copia todos los `.py`; el volumen sigue siendo para el servidor actual). Los archivos nuevos se despliegan dejándolos en esta carpeta.
 
 ## 5.2 Integración con n8n (workflow `Bot-Sin-excusas`)
 
@@ -93,11 +93,25 @@ El control del flujo se hace desde Telegram con el workflow `Bot-Sin-excusas` (i
 
 **Acceso a la API de n8n.** La clave se guarda en `~/.n8n_api_key` (permisos 600) y se usa con `curl -H "X-N8N-API-KEY: $(cat ~/.n8n_api_key)" http://localhost:5678/api/v1/...`. La clave se compartió en el chat el 2026-10-01: **rotarla** cuando termine el trabajo con n8n.
 
+## 5.3 Panel de control (agilidad)
+
+Para no depender de muchos comandos, se añade el paquete `panel/`: menús en vez de comandos, con interfaces que se habilitan o deshabilitan en `panel.json`.
+
+- [x] Interfaz de terminal: `python3 -m panel` (2026-10-02). Menú de proyectos con estado y acciones: revisar, generar guía (IA/local), renderizar con progreso, estado, descargar.
+- [x] Acción «Generar voces (Kokoro)» en la terminal (2026-10-02): pegas el guion en la terminal (script bash o `archivo.mp3 | texto`, termina con `FIN`), se procesa en memoria y se escribe en `voz/`; no se guarda ningún archivo de guion. Pendiente: reutilizarla para los tramos del video largo.
+- [ ] Interfaz Telegram con botones (`/menu`) en `Bot-Sin-excusas` (requiere confirmación para tocar n8n).
+- [ ] Interfaz web (`/ui`), con autenticación si se abre fuera de la red local.
+- [ ] Añadir acciones del video largo al panel cuando existan los endpoints `/largo/*` (Fase 3).
+
+Arquitectura: `ClienteApi` (HTTP) → `ServicioProyectos` (acciones) → `Interfaz` (terminal/web/Telegram). Cada interfaz nueva es una clase registrada en `panel/interfaces/__init__.py`. Como solo usa la API, funciona desde cualquier equipo cambiando `api_url`.
+
 ## 6. Fases
 
 Cada fase tiene entregables y un criterio de "terminado". No pasar a la siguiente sin cumplirlo.
 
 ### Fase 0: Definir formato
+
+_En curso (2026-10-02): borrador en `FORMATO_VIDEO_LARGO.md` y `ejemplos/guia_largo_ejemplo.json`, pendiente de confirmar._
 **Entregables**
 - [ ] Estructura de carpetas confirmada
 - [ ] Esquema de `guia.json` 16:9 (formato, escenas, tipo de medio por escena: imagen o clip)
@@ -109,18 +123,28 @@ Cada fase tiene entregables y un criterio de "terminado". No pasar a la siguient
 
 ### Fase 1: Render por bloques (va primero: mayor riesgo)
 **Entregables**
-- [ ] `render_largo.py` con ancho y alto como parámetros (1920x1080)
-- [ ] Escena con imagen (zoom/paneo adaptado a 16:9)
-- [ ] Escena con clip de video (ajuste de duración a la voz)
-- [ ] Texto en pantalla para 16:9 (posiciones y tamaños)
-- [ ] Unión por bloques (grupos de 10-20 clips) y unión final
-- [ ] Mezcla de audio: voces + música con volumen por escena
-- [ ] Log y estado compatibles con el estilo de shorts
+- [x] `render_largo.py` con ancho y alto como parámetros (1920x1080) — paquete `largo/` (2026-10-02)
+- [x] Escena con imagen (zoom/paneo adaptado a 16:9; verticales completas sobre fondo borroso)
+- [x] Escena con clip de video (ajuste de duración a la voz: recortar, congelar, bucle)
+- [x] Texto en pantalla para 16:9 (posiciones y tamaños)
+- [x] Unión por bloques (grupos de 10-20 clips) y unión final
+- [x] Mezcla de audio: voces + música con volumen por escena
+- [x] Log y estado compatibles con el estilo de shorts (mismo formato de mensajes; falta el endpoint, Fase 3)
 
 **Terminado cuando:**
-- Un proyecto de ~3 min renderiza correctamente de punta a punta.
-- Un proyecto de ~20 min renderiza sin agotar RAM ni disco.
-- Se anotan tiempo de render y consumo de RAM en el registro de avance.
+- [x] Un proyecto de ~3 min renderiza correctamente de punta a punta (2026-10-02: 169 s en 6.9 min).
+- [x] Un proyecto de ~17 min renderiza sin agotar RAM ni disco (2026-10-02, prueba sintética de 1016 s: ~40 min de video unido, RAM libre nunca bajó de 2.0 GB, disco pico 952 MB; el audio falló por la expresión de volumen y se corrigió y verificó con `--reanudar`). **Pendiente:** un render completo de 15-20 min de una sola vez con el audio corregido, y con material real, no repetido.
+- [x] Se anotan tiempo de render y consumo de RAM en el registro de avance (ver abajo y `HISTORIAL.md`).
+
+**Mediciones (4 núcleos, 7.8 GB de RAM, con los demás contenedores corriendo):**
+
+| Prueba | Video | Render | Pico de un ffmpeg |
+|---|---|---|---|
+| 12 escenas, material real de `short_20` | 84.7 s | 2.6 min | 1.9 GB (bloques de 12) |
+| 24 escenas (sintética) | 169 s | 6.9 min | 1.9 GB |
+| 144 escenas (sintética) | 1016 s | ~42 min | 1.9 GB |
+
+El tiempo es ~2.5x la duración del video; el pico de memoria depende del tamaño del bloque (~1 GB con `--bloque 5`, ~1.9 GB con 12), no de la duración. La unión es casi tan lenta como las escenas (el video se codifica varias veces). **Posible optimización** (no hecha): unir bloques sin recodificar todo.
 
 ### Fase 2: Guía automática por tramos
 **Entregables**
@@ -179,3 +203,14 @@ Flujo común: por cada tramo se produce un prompt visual o una consulta de búsq
 |---|---|
 | 2026-10-01 | Análisis del servicio; decisiones de diseño; plan creado. Caché SHA256 en `/probe` (pendiente probar en Docker). Sin cambios en el código de shorts. |
 | 2026-10-01 | Revisión del código. Nota: `main.py` (caché `/probe`, `/generar-guia`) y `generar_guia.py` (regex `IMG_`) sí tienen cambios respecto a los `.bak`; son ajustes menores, no tocan `render.py`. Verificado el montaje por volumen. Leído el workflow `Bot-Sin-excusas` vía API de n8n (solo lectura); documentada la integración en 5.2. Nada modificado en n8n. |
+| 2026-10-02 | Caché de `/probe` probado en el contenedor real. `/generar-guia` en n8n: el usuario confirma que funcionó el 2026-10-01. Creados `REGLAS.md` e `HISTORIAL.md`. |
+| 2026-10-02 | Creado y probado el panel de terminal (`panel/`, `panel.json`). Ver 5.3. |
+| 2026-10-02 | Panel: añadida y probada la generación de voces con Kokoro desde la terminal. |
+| 2026-10-02 | Voces: cambiado a modo «pegar guion» (sin `voces.txt`). Probado con Kokoro. |
+| 2026-10-02 | Instalación en laptop: `docker-compose.yml`, `.env.example`, `Dockerfile` actualizado, panel con variables de entorno y `README.md`. Probado en entorno aparte. |
+| 2026-10-02 | Comandos de shell portables en `comandos/` (nuevo-short, render-short, guia-short) y guía de uso en el README. Probados con compose aparte. Fase 3: los equivalentes del video largo irán en la misma carpeta. |
+| 2026-10-02 | Fase 0 iniciada: borrador de estructura, reglas de nombres y esquema 16:9 en `FORMATO_VIDEO_LARGO.md`; ejemplo con nombres ficticios. Pendiente confirmación y material real. |
+| 2026-10-02 | Fase 1 iniciada y escrita: paquete `largo/` + `render_largo.py`. Probado con material de `short_20` (12 escenas: OK, 3.6 min de render para 1.4 min de video) y con una prueba sintética de ~3 min (OK, 6.9 min, pico 1.9 GB). Prueba de ~20 min en curso. |
+| 2026-10-02 | Fase 1 verificada con pruebas de 85 s, 169 s y 1016 s. Bug de la curva de volumen con muchas escenas corregido; añadido `--reanudar`. Pendiente: render completo de 15-20 min con material real. |
+| 2026-10-02 | Optimización del render: una pasada por escena + puentes xfade + unión `-c copy` (sin bloques). Render de 16 min: de 40.9 a 14.2 min (2.9x), sin errores de decodificación. Pendiente de revisión visual del video largo y de decidir si se reduce el pico de memoria (2.6 GB). Sin commit. |
+| 2026-10-02 | Calidad de shorts (opción A, solo `render.py`): volumen a -14 LUFS (de -23.4), efecto `zoom_out_lento` y animación `golpe` implementados. Regresión con `short_26`: solo cambian los fotogramas esperados. Pendiente: texto sobre el sujeto (guía), etiqueta «IMG_04» impresa en una imagen fuente, resto de mejoras de efectos (easing, supersampling, transiciones). Sin commit. |

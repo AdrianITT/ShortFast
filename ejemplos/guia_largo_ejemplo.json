@@ -1,0 +1,52 @@
+{
+  "proyecto": "largo_ejemplo",
+  "formato": {"ancho": 1920, "alto": 1080, "fps": 30},
+  "fuentes": {
+    "bold": "fuentes/montserrat/Montserrat-Bold.ttf",
+    "black": "fuentes/montserrat/Montserrat-Black.ttf"
+  },
+  "voz_retraso": 0.3,
+  "pausa_entre_escenas": 0.4,
+  "duracion_max": 90,
+  "musica": {"archivo": "musica/fondo.mp3", "volumen": 0.6, "fade_out": 3},
+  "escenas": [
+    {
+      "id": "001",
+      "voz": "voz/001.mp3",
+      "medios": [
+        {"tipo": "imagen", "archivo": "imagenes/001_a.jpg", "efecto": "zoom_in_lento", "duracion": 8},
+        {"tipo": "imagen", "archivo": "imagenes/001_b.jpg", "efecto": "paneo_der"}
+      ],
+      "textos": [
+        {"contenido": "EL MIEDO AL FRACASO", "fuente": "black", "tamano": 90, "color": "white",
+         "posicion": "centro", "animacion": "fade", "inicio": 0, "duracion": 5}
+      ],
+      "musica_vol": 0.2,
+      "transicion_salida": {"tipo": "fade", "duracion": 0.5}
+    },
+    {
+      "id": "002",
+      "voz": "voz/002.mp3",
+      "medios": [
+        {"tipo": "clip", "archivo": "clips/002_a.mp4", "ajuste": "recortar", "inicio": 2.0, "duracion": 10},
+        {"tipo": "imagen", "archivo": "imagenes/002_b.jpg", "efecto": "zoom_out"}
+      ],
+      "textos": [],
+      "musica_vol": 0.15,
+      "transicion_salida": {"tipo": "dissolve", "duracion": 1}
+    },
+    {
+      "id": "003",
+      "voz": "voz/003.mp3",
+      "medios": [
+        {"tipo": "clip", "archivo": "clips/003_a.mp4", "ajuste": "congelar"}
+      ],
+      "textos": [
+        {"contenido": "Hazlo con miedo.", "fuente": "bold", "tamano": 80, "color": "white",
+         "posicion": "abajo", "animacion": "palabra_por_palabra", "inicio": 1}
+      ],
+      "musica_vol": 0.15,
+      "transicion_salida": {"tipo": "fadeblack", "duracion": 0.5}
+    }
+  ]
+}

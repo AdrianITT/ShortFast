@@ -1,0 +1,13 @@
+{
+  "interfaces": {
+    "terminal": {
+      "habilitada": true
+    },
+    "web": {
+      "habilitada": false
+    },
+    "telegram": {
+      "habilitada": false
+    }
+  }
+}

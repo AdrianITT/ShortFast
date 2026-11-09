@@ -1,0 +1,44 @@
+# Arranque completo: `docker compose up -d`. Configuración en el archivo .env (ver .env.example).
+name: ffmpeg-api
+
+services:
+  # Prepara las carpetas de datos con los permisos correctos y termina.
+  preparar-datos:
+    build: .
+    image: ffmpeg-api
+    user: root
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        mkdir -p /data/proyectos /data/salida /data/plantilla
+        chown ${PUID:-1000}:${PGID:-1000} /data /data/proyectos /data/salida /data/plantilla
+    volumes:
+      - ${DATA_DIR:-./datos}:/data
+
+  ffmpeg-api:
+    build: .
+    image: ffmpeg-api
+    user: "${PUID:-1000}:${PGID:-1000}"
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8123}:8123"
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+    volumes:
+      - ${DATA_DIR:-./datos}:/data
+    depends_on:
+      preparar-datos:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8123/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Voz (Kokoro TTS, en CPU). Si ya tienes uno corriendo, comenta este servicio y apunta TTS_URL al tuyo.
+  kokoro:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    restart: unless-stopped
+    ports:
+      - "${KOKORO_PORT:-8880}:8880"

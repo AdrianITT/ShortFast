@@ -1,0 +1,15 @@
+#!/bin/bash
+# Genera guia.json desde guia_borrador.json y renderiza, todo en un solo comando.
+# Uso: guia-short short_16_armadura
+source "$(dirname "$(readlink -f "$0")")/_comun.sh"
+
+PROYECTO="$1"
+[ -z "$PROYECTO" ] && { echo "Uso: guia-short <nombre_proyecto>"; exit 1; }
+CARPETA="$PROYECTOS/$PROYECTO"
+[ -f "$CARPETA/guia_borrador.json" ] || { echo "❌ No encontré $CARPETA/guia_borrador.json — súbelo primero."; exit 1; }
+
+echo "▶ Generando guia.json..."
+en_api python /app/generar_guia.py "$PROYECTO" || exit 1
+
+echo "▶ Renderizando..."
+exec "$(dirname "$(readlink -f "$0")")/render-short" "$PROYECTO"

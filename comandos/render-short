@@ -1,0 +1,45 @@
+#!/bin/bash
+# Valida el proyecto y renderiza el short en segundo plano, mostrando el progreso.
+# Uso: render-short short_14_tema
+source "$(dirname "$(readlink -f "$0")")/_comun.sh"
+
+NOMBRE=$1
+[ -z "$NOMBRE" ] && { echo "Uso: render-short <nombre>"; exit 1; }
+DIR="$PROYECTOS/$NOMBRE"
+LOGS="$SALIDA/logs"
+[ -f "$DIR/guia.json" ] || { echo "❌ No existe $DIR/guia.json"; exit 1; }
+
+# 1. Revisar que existan todos los archivos del JSON
+python3 - "$DIR" << 'EOF' || exit 1
+import json, os, sys
+d = sys.argv[1]
+try:
+    g = json.load(open(os.path.join(d, "guia.json"), encoding="utf-8"))
+except Exception as e:
+    print(f"❌ guia.json tiene un error: {e}"); sys.exit(1)
+rutas = [g["musica"]["archivo"]] + list(g["fuentes"].values())
+for e in g["escenas"]:
+    rutas += e.get("imagenes") or []
+    if e.get("voz"): rutas.append(e["voz"])
+falta = [r for r in rutas if not os.path.isfile(os.path.join(d, r))]
+if falta:
+    print("❌ Faltan estos archivos:")
+    for f in falta: print("   -", f)
+    sys.exit(1)
+print(f"✅ Todo en orden ({len(g['escenas'])} escenas)")
+EOF
+
+# 2. Render en segundo plano (sigue aunque cierres la terminal)
+mkdir -p "$LOGS"
+LOG="$LOGS/$NOMBRE.log"
+export RAIZ API_CONTENEDOR
+nohup bash -c '
+  source "$RAIZ/comandos/_comun.sh"
+  en_api python /app/render.py "$1"
+  if [ $? -eq 0 ]; then echo "🏁 TERMINADO OK — $(date)"; else echo "🏁 TERMINÓ CON ERROR — $(date)"; fi
+' _ "$NOMBRE" > "$LOG" 2>&1 &
+
+echo "🎬 Render iniciado. Log: $LOG"
+echo "   (Ctrl+C solo deja de mostrar el progreso, el render sigue)"
+sleep 1
+tail -f "$LOG"

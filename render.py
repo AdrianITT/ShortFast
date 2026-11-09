@@ -82,6 +82,8 @@ def zoompan(efecto, n):
         z, x, y = f"1+0.15*on/{n}", cx, cy
     elif efecto == "zoom_out":
         z, x, y = f"1.15-0.15*on/{n}", cx, cy
+    elif efecto == "zoom_out_lento":
+        z, x, y = f"1.08-0.08*on/{n}", cx, cy
     elif efecto == "paneo_der":
         z, x, y = "1.15", f"(iw-iw/zoom)*on/{n}", cy
     elif efecto == "paneo_rapido":
@@ -115,7 +117,7 @@ def posicion(pos, n_lineas, tam):
     return cx, y0, lh
 
 
-def drawtext(txt, fuente, tam, col, cx, y, enable, alpha, tmp):
+def drawtext(txt, fuente, tam, col, cx, y, enable, alpha, tmp, tam_expr=None):
     # El texto va en un archivo para no pelear con el escape de : , ' en FFmpeg
     _contador_txt[0] += 1
     f = os.path.join(tmp, f"txt_{_contador_txt[0]:03d}.txt")
@@ -123,7 +125,7 @@ def drawtext(txt, fuente, tam, col, cx, y, enable, alpha, tmp):
         fh.write(txt)
     borde = max(2, tam // 22)
     return (f"drawtext=fontfile='{fuente}':textfile='{f}':expansion=none:"
-            f"fontsize={tam}:fontcolor={col}:borderw={borde}:bordercolor=black@0.6:"
+            f"fontsize='{tam_expr or tam}':fontcolor={col}:borderw={borde}:bordercolor=black@0.6:"
             f"x={cx:.1f}-text_w/2:y={y:.1f}:enable='{enable}':alpha='{alpha}'")
 
 
@@ -179,9 +181,11 @@ def filtros_texto(p, guia, proj, tmp):
         else:
             alpha = (f"if(lt(t,{t0:.3f}),0,min(1,(t-{t0:.3f})/0.5))"
                      if anim == "fade" else "1")
+            # golpe: el texto entra de golpe, 18 % más grande, y se asienta en 0.2 s
+            tam_expr = (f"{tam}*(1+0.18*max(0,1-(t-{t0:.3f})/0.2))" if anim == "golpe" else None)
             for li, linea in enumerate(full):
                 out.append(drawtext(linea, fuente, tam, col, cx, y0 + li * lh,
-                                    f"between(t,{t0:.3f},{t1:.3f})", alpha, tmp))
+                                    f"between(t,{t0:.3f},{t1:.3f})", alpha, tmp, tam_expr))
     return out
 
 
@@ -324,6 +328,27 @@ def mezclar_audio(plan, guia, proj, total, tmp):
     return salida
 
 
+def normalizar_audio(audio, tmp, lufs):
+    """Lleva el volumen integrado a `lufs` (YouTube/celulares esperan ~-14) con loudnorm en dos pasadas.
+    Si `lufs` es None o 0 no hace nada. Devuelve la ruta del audio a usar."""
+    if not lufs:
+        return audio
+    objetivo = f"loudnorm=I={lufs}:TP=-1.5:LRA=11"
+    r = run(["ffmpeg", "-hide_banner", "-i", audio, "-af", objetivo + ":print_format=json",
+             "-f", "null", "-"])
+    medido = json.loads(r.stderr[r.stderr.rindex("{"):r.stderr.rindex("}") + 1])
+    if medido["input_i"] in ("-inf", "inf"):  # audio en silencio: no hay nada que normalizar
+        return audio
+    log(f"🔊 Volumen medido: {float(medido['input_i']):.1f} LUFS → objetivo {lufs} LUFS")
+    salida = os.path.join(tmp, "audio_norm.wav")
+    run(["ffmpeg", "-y", "-i", audio, "-af",
+         f"{objetivo}:measured_I={medido['input_i']}:measured_TP={medido['input_tp']}:"
+         f"measured_LRA={medido['input_lra']}:measured_thresh={medido['input_thresh']}:"
+         f"offset={medido['target_offset']}:linear=true,aresample=48000",
+         "-c:a", "pcm_s16le", salida])
+    return salida
+
+
 # ─────────────────────────── main ───────────────────────────
 
 def main():
@@ -377,6 +402,7 @@ def main():
     # 4. Audio: voces en su lugar + música con volumen por escena
     log("🎵 Mezclando voz y música...")
     audio = mezclar_audio(plan, guia, proj, total, tmp)
+    audio = normalizar_audio(audio, tmp, guia.get("lufs", -14))
 
     # 5. Exportar
     final = os.path.join(SALIDA, f"{nombre}.mp4")
