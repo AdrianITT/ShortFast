@@ -104,6 +104,8 @@ Si el equipo tiene CasaOS, el instalador ofrece registrar **una sola app «Short
 5. **Guía**: guarda el borrador y genera la guía (local o con IA).
 6. **Render**: el video aparece al terminar, con vista previa.
 
+Paso a paso de cada pantalla: **`GUIA_USO.md`**.
+
 **Tu propia voz:** menú **Mis voces** → sube 20–60 s de grabación limpia (una sola persona, sin música), ponle nombre y elige la voz base (M = hombre, F = mujer). Tarda unos minutos. Después aparece en **Voces → Servicio «Mi voz»**. Solo tu voz o la de alguien que te dé permiso.
 
 ---

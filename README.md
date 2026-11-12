@@ -1,6 +1,6 @@
 # ffmpeg-api
 
-Servicio que automatiza la creación de **YouTube Shorts verticales (1080x1920)**: toma tus imágenes, voces y música, y devuelve un video terminado con zoom/paneo, transiciones, texto en pantalla y mezcla de audio. Incluye un **panel de terminal** para manejarlo con menús en vez de comandos.
+Servicio que automatiza la creación de **YouTube Shorts verticales (1080x1920)**: toma tus imágenes, voces y música, y devuelve un video terminado con zoom/paneo, transiciones, texto en pantalla y mezcla de audio. Incluye un **panel web** (puerto 8090) y un panel de terminal para manejarlo sin comandos. Uso paso a paso del panel web: **`GUIA_USO.md`**.
 
 > Estado: los shorts están en producción. El pipeline de **video largo 16:9 (15-20 min)** está planeado, aún sin iniciar (ver `PLAN_VIDEO_LARGO.md`).
 
@@ -40,7 +40,11 @@ Crear proyecto → generar voces → subir imágenes y música → generar guía
 
 ## 2. Cómo se usa
 
-### Con el panel de terminal (recomendado)
+### Con el panel web (recomendado)
+
+Abre `http://<ip-del-equipo>:8090`: proyectos, archivos, voces (generar, cortar una grabación, clonar tu voz), guía, render y biblioteca de música. Todo el flujo está en **`GUIA_USO.md`**.
+
+### Con el panel de terminal
 
 ```bash
 python3 -m panel
@@ -213,10 +217,10 @@ Prioridad en el panel: variables de entorno > `.env` > `panel.json` > valores po
 ### Interfaces del panel (`panel.json`)
 
 ```json
-{"interfaces": {"terminal": {"habilitada": true}, "web": {"habilitada": false}, "telegram": {"habilitada": false}}}
+{"interfaces": {"terminal": {"habilitada": false}, "web": {"habilitada": true, "host": "0.0.0.0", "puerto": 8090}, "telegram": {"habilitada": false}}}
 ```
 
-Hoy solo existe la terminal; `web` y `telegram` están previstas. Si habilitas una que no existe, el panel avisa y la omite.
+Existen `terminal` y `web` (la de Docker usa la web); `telegram` está prevista. Si habilitas una que no existe, el panel avisa y la omite.
 
 ### Usar el panel desde otro equipo
 
