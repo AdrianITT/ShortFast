@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block titulo %}Cortar grabación · {{ nombre }}{% endblock %}
+{% block contenido %}
+  {% include "_pasos.html" %}
+
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  {# 1. subir (o reutilizar) la grabación y decir cuántos audios salen #}
+  <section class="seccion">
+    <form method="post" action="/proyecto/{{ nombre }}/voces/cortar" enctype="multipart/form-data">
+      <p class="ayuda" style="margin-top:0">Sube tu grabación completa y la corto en un audio por escena usando las pausas.
+        Deja una pausa clara (medio segundo o más) entre escena y escena. ¿Prefieres voces generadas? <a href="/proyecto/{{ nombre }}/voces">Generar voces</a></p>
+      <label class="zona" data-manual style="margin-top:.6rem">
+        <input type="file" name="grabacion" accept="audio/*" {% if not hay_grabacion %}required{% endif %}>
+        <span class="texto-zona">{{ "Ya hay una grabación subida; elige otra solo si quieres cambiarla" if hay_grabacion else "Elegir o soltar la grabación (mp3, wav, m4a…)" }}</span>
+      </label>
+
+      <label for="guion" style="display:block;margin-top:.8rem"><strong>Guion</strong> <span class="ayuda">(opcional: da nombre a cada audio)</span></label>
+      <textarea id="guion" name="guion" rows="6" spellcheck="false" style="width:100%; font-family: monospace; margin-top:.3rem"
+                placeholder="01_hook.mp3 | texto…&#10;02_lugar.mp3 | texto…">{{ guion }}</textarea>
+
+      <div class="fila">
+        <label class="campo">o solo cuántos audios
+          <input name="tramos" type="number" min="1" max="99" value="{{ tramos }}" style="width:6em" placeholder="ej. 8">
+        </label>
+        <details>
+          <summary class="ayuda" style="cursor:pointer">Sensibilidad</summary>
+          <div class="fila" style="margin-top:.3rem">
+            <label class="campo" title="Más alto (ej. -30) = cuenta como silencio aunque haya algo de ruido de fondo">Umbral (dB)
+              <input name="umbral" type="number" step="1" min="-70" max="-10" value="{{ umbral }}" style="width:6em">
+            </label>
+            <label class="campo" title="Duración mínima de una pausa para considerarla corte">Pausa mínima (s)
+              <input name="silencio" type="number" step="0.05" min="0.1" max="3" value="{{ silencio }}" style="width:6em">
+            </label>
+          </div>
+        </details>
+        <span class="empuje"></span>
+        <button type="submit" {% if propuesta %}class="secundario"{% endif %}>{{ "Volver a detectar" if propuesta else "Detectar cortes" }}</button>
+      </div>
+    </form>
+  </section>
+
+  {# 2. revisar y ajustar los cortes propuestos, escuchar cada tramo y guardar #}
+  {% if propuesta %}
+    <section class="seccion">
+      {% for a in propuesta.avisos %}<p class="aviso">{{ a }}</p>{% endfor %}
+      <p class="ayuda" style="margin-top:0">Grabación de {{ "%.1f"|format(propuesta.duracion) }} s · {{ propuesta.pausas }} pausa(s) detectadas.
+        Escucha cada tramo con ▶ y corrige los segundos si hace falta.</p>
+      <audio id="grabacion" preload="metadata" src="/proyecto/{{ nombre }}/voces/grabacion"></audio>
+
+      <form method="post" action="/proyecto/{{ nombre }}/voces/cortar/guardar">
+        <div class="tabla-contenedor">
+          <table class="pistas tramos">
+            <thead><tr><th><span class="visualmente-oculto">Escuchar</span></th><th>Archivo</th><th>Inicio (s)</th><th>Fin (s)</th><th>Dura</th></tr></thead>
+            <tbody>
+              {% for ini, fin in propuesta.segmentos %}
+                <tr>
+                  <td><button type="button" class="secundario escuchar" aria-label="Escuchar tramo {{ loop.index }}">▶</button></td>
+                  <td>
+                    <input type="text" name="archivo" value="{{ nombres[loop.index0] }}" required pattern="[A-Za-z0-9_\-]+\.mp3" style="width:13em">
+                    {% if nombres[loop.index0] in existentes %}<span class="estado">ya existe</span>{% endif %}
+                  </td>
+                  <td><input name="inicio" type="number" step="0.01" min="0" value="{{ ini }}" style="width:6em" required></td>
+                  <td><input name="fin" type="number" step="0.01" min="0" value="{{ fin }}" style="width:6em" required></td>
+                  <td class="dura">{{ "%.1f"|format(fin - ini) }} s</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="fila">
+          {% if nombres|select("in", existentes)|list %}
+            <label><input type="checkbox" name="sobrescribir" value="true"> Reemplazar los audios que ya existen</label>
+          {% endif %}
+          <span class="empuje"></span>
+          <button type="submit">Guardar {{ propuesta.segmentos|length }} audios</button>
+        </div>
+      </form>
+    </section>
+
+    <script>
+      // un solo reproductor: ▶ salta al inicio del tramo y se detiene en su fin
+      const audio = document.getElementById("grabacion");
+      let hasta = null;
+      audio.addEventListener("timeupdate", () => { if (hasta !== null && audio.currentTime >= hasta) { audio.pause(); hasta = null; } });
+      document.querySelectorAll("table.tramos tbody tr").forEach((fila) => {
+        const [ini, fin] = [fila.querySelector("[name=inicio]"), fila.querySelector("[name=fin]")];
+        const dura = () => { fila.querySelector(".dura").textContent = (fin.value - ini.value).toFixed(1) + " s"; };
+        ini.addEventListener("input", dura);
+        fin.addEventListener("input", dura);
+        fila.querySelector(".escuchar").addEventListener("click", () => {
+          audio.currentTime = parseFloat(ini.value);
+          hasta = parseFloat(fin.value);
+          audio.play();
+        });
+      });
+    </script>
+  {% endif %}
+{% endblock %}

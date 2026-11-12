@@ -1,8 +1,17 @@
+# Lo que nunca entra en una imagen: secretos, entornos locales, datos y restos.
+# (antes también se excluía panel/; ahora hace falta para construir panel/Dockerfile)
 .git
 .env
+041999
+041999.pub
+id_*
+*.pem
+.venv
 datos
-panel
 __pycache__
+*.pyc
 *.bak
 *.log
 *.md
+*.mp3
+*.mp4

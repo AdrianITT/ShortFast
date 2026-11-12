@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block titulo %}Guía · {{ nombre }}{% endblock %}
+{% block contenido %}
+  {% include "_pasos.html" %}
+
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  {% if mensaje %}
+    <div class="siguiente">
+      <span>{{ mensaje }}</span>
+      {% if guia_json %}<a class="boton" href="/proyecto/{{ nombre }}/render">Siguiente: renderizar</a>{% endif %}
+    </div>
+  {% endif %}
+
+  <section class="seccion">
+    <form method="post" action="/proyecto/{{ nombre }}/guia/borrador">
+      <label for="borrador"><strong>Borrador</strong> <small class="estado"><code>guia_borrador.json</code></small></label>
+      <p class="ayuda">JSON con claves como «2A», «OUTRO» o «MUSICA». Al generar la guía se enlaza con los archivos reales del proyecto. Se valida antes de guardar.</p>
+      <textarea id="borrador" name="texto" rows="18" spellcheck="false" style="width:100%; font-family: monospace; margin-top:.5rem">{{ borrador }}</textarea>
+      <div class="fila">
+        <button class="secundario" type="submit">Guardar borrador</button>
+        <span class="empuje"></span>
+        <button type="submit" formaction="/proyecto/{{ nombre }}/guia/generar-local">Guardar y generar guía</button>
+        <button class="secundario" type="submit" formaction="/proyecto/{{ nombre }}/guia/generar-ia" formnovalidate
+                title="Usa Gemini a partir de guia.md; no usa el borrador">Generar con IA</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="seccion">
+    {% if guia_json %}
+      <details>
+        <summary><strong>Guía final</strong> <code>guia.json</code> — ver contenido</summary>
+        <pre class="guia-json">{{ guia_json }}</pre>
+      </details>
+    {% else %}
+      <p class="vacio"><strong>Guía final:</strong> aún no hay. Genérala con los botones de arriba.</p>
+    {% endif %}
+  </section>
+{% endblock %}

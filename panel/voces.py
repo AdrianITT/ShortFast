@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 NOMBRE_MP3 = re.compile(r"^[A-Za-z0-9_\-]+\.mp3$")
+VELOCIDAD_MIN, VELOCIDAD_MAX = 0.5, 1.5
 
 
 class ErrorGuionVoces(Exception):
@@ -107,6 +108,27 @@ class GeneradorVoces:
         self.carpeta_proyectos = Path(carpeta_proyectos)
         self.voz_por_defecto = voz_por_defecto
 
+    @property
+    def velocidad_por_defecto(self):
+        return self.tts.velocidad
+
+    @staticmethod
+    def velocidad_valida(valor):
+        """Texto -> float entre VELOCIDAD_MIN y VELOCIDAD_MAX; vacío = None (usa la de por defecto)."""
+        if valor is None or not str(valor).strip():
+            return None
+        try:
+            v = float(str(valor).replace(",", "."))
+        except ValueError:
+            raise ErrorGuionVoces(f"Velocidad inválida «{valor}»: usa un número, por ejemplo 0.93") from None
+        if not VELOCIDAD_MIN <= v <= VELOCIDAD_MAX:
+            raise ErrorGuionVoces(f"La velocidad debe estar entre {VELOCIDAD_MIN} y {VELOCIDAD_MAX}")
+        return v
+
+    def voces_disponibles(self):
+        """[(grupo, [ids])] de las voces que ofrece el servicio de voz."""
+        return self.tts.agrupar(self.tts.voces())
+
     @staticmethod
     def preparar(texto):
         """Convierte el texto pegado en un GuionVoces, detectando el formato."""
@@ -119,7 +141,7 @@ class GeneradorVoces:
         voz = self.carpeta_proyectos / proyecto / "voz"
         return [t.archivo for t in guion.tramos if (voz / t.archivo).is_file()]
 
-    def generar(self, proyecto, guion, sobrescribir=False):
+    def generar(self, proyecto, guion, sobrescribir=False, velocidad=None):
         """Entrega un ResultadoTramo por tramo; un fallo en uno no detiene los demás."""
         destino = self.carpeta_proyectos / proyecto / "voz"
         destino.mkdir(parents=True, exist_ok=True)
@@ -130,7 +152,7 @@ class GeneradorVoces:
                 yield ResultadoTramo(t.archivo, "omitido")
                 continue
             try:
-                audio = self.tts.sintetizar(t.texto, voz)
+                audio = self.tts.sintetizar(t.texto, voz, velocidad)
             except Exception as e:  # ErrorTts u otro: se informa por tramo
                 yield ResultadoTramo(t.archivo, "error", str(e))
                 continue

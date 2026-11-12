@@ -56,13 +56,13 @@ Pendiente del diseño de acceso remoto fuera de la red (mencionado en `HISTORIAL
 
 ## 4. Fases de implementación
 
-- [ ] **Fase 1 — servidor mínimo y lista de proyectos**: `InterfazWeb.iniciar()`, ruta `/` con lista de proyectos (reusa `ServicioProyectos.listar`), elegir/crear proyecto. Sin autenticación todavía (solo red local).
-- [ ] **Fase 2 — subida de archivos**: formulario de subida para imágenes/música/fuentes/voz grabada, validando extensión y tamaño, igual de estricto que `GeneradorVoces` con los nombres (sin rutas, sin sobrescribir sin confirmar).
-- [ ] **Fase 3 — voz con Kokoro desde la web**: textarea para pegar guion (reusa `GuionVoces`/`AnalizadorBash`/`AnalizadorLineas` sin tocarlos), vista previa del resumen, confirmar, progreso por tramo, reintento de fallidos — mismo flujo que terminal, en HTML.
-- [ ] **Fase 4 — guía**: botones "Generar con IA" / "Generar desde borrador", vista del `guia.json` resultante (solo lectura al inicio).
-- [ ] **Fase 5 — render y descarga**: lanzar render, barra/log de progreso vía SSE, botón de descarga cuando termina.
-- [ ] **Fase 6 — música reutilizable** (ver sección 5).
-- [ ] **Fase 7 — autenticación para acceso remoto** y, si se decide, exponer fuera de la red.
+- [x] **Fase 1 — servidor mínimo y lista de proyectos**: `InterfazWeb.iniciar()`, ruta `/` con lista de proyectos (reusa `ServicioProyectos.listar`), elegir/crear proyecto. Sin autenticación todavía (solo red local).
+- [x] **Fase 2 — subida de archivos**: formulario de subida para imágenes/música/fuentes/voz grabada, validando extensión y tamaño, igual de estricto que `GeneradorVoces` con los nombres (sin rutas, sin sobrescribir sin confirmar).
+- [x] **Fase 3 — voz con Kokoro desde la web**: textarea para pegar guion (reusa `GuionVoces`/`AnalizadorBash`/`AnalizadorLineas` sin tocarlos), vista previa del resumen, confirmar, progreso por tramo, reintento de fallidos — mismo flujo que terminal, en HTML.
+- [x] **Fase 4 — guía**: botones "Generar con IA" / "Generar desde borrador", vista del `guia.json` resultante (solo lectura). Incluye lo pedido por el usuario: crear/editar `guia_borrador.json` directamente desde la web.
+- [x] **Fase 5 — render y descarga**: lanzar render, barra/log de progreso vía SSE, botón de descarga cuando termina.
+- [x] **Fase 6 — música reutilizable** (ver sección 5).
+- [x] **Fase 7 — autenticación para acceso remoto**: HTTP Basic Auth, activa solo si `PANEL_CLAVE` está puesta en el entorno/`.env`. Sin esa variable, la web sigue sin autenticación (uso en red local).
 
 Cada fase se prueba contra la API real en un proyecto de prueba antes de pasar a la siguiente, como se ha hecho con el resto del servicio (ver convención en `HISTORIAL.md`).
 

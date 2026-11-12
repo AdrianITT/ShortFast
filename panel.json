@@ -1,10 +1,12 @@
 {
   "interfaces": {
     "terminal": {
-      "habilitada": true
+      "habilitada": false
     },
     "web": {
-      "habilitada": false
+      "habilitada": true,
+      "host": "0.0.0.0",
+      "puerto": 8090
     },
     "telegram": {
       "habilitada": false

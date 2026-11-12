@@ -6,8 +6,6 @@ Las piezas se pegan con `-c copy`, de modo que el costo no crece con la duració
 """
 import os
 
-XFADE = {"fade": "fade", "fadeblack": "fadeblack", "fadewhite": "fadewhite", "dissolve": "dissolve"}
-
 
 class Ensamblador:
     def __init__(self, ffmpeg, fps, registro, codificacion, conservar_tmp=False):
@@ -43,7 +41,7 @@ class Ensamblador:
         d = plan_saliente.td_frames / self.fps
         norm = f"settb=AVTB,fps={self.fps},format=yuv420p,setsar=1"
         fc = (f"[0:v]{norm}[a];[1:v]{norm}[b];"
-              f"[a][b]xfade=transition={XFADE[tipo]}:duration={d:.4f}:offset=0[v]")
+              f"[a][b]xfade=transition={tipo}:duration={d:.4f}:offset=0[v]")
         self.ffmpeg.ejecutar(["ffmpeg", "-y", "-i", saliente.cola, "-i", entrante.cabeza,
                               "-filter_complex", fc, "-map", "[v]"] + self.codificacion + [destino])
         return destino

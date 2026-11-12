@@ -29,9 +29,11 @@ class GeneradorTexto:
                 salida += self._palabra_por_palabra(lineas, tx, fuente, col, cx, y0, alto_linea, t0, t1, plan.voz_dur)
             else:
                 alpha = (f"if(lt(t,{t0:.3f}),0,min(1,(t-{t0:.3f})/0.5))" if tx.animacion == "fade" else "1")
+                # golpe: el texto entra 18 % más grande y se asienta en 0.2 s (igual que en shorts)
+                tam_expr = (f"{tx.tamano}*(1+0.18*max(0,1-(t-{t0:.3f})/0.2))" if tx.animacion == "golpe" else None)
                 for i, linea in enumerate(lineas):
                     salida.append(self._drawtext(linea, fuente, tx.tamano, col, cx, y0 + i * alto_linea,
-                                                 f"between(t,{t0:.3f},{t1:.3f})", alpha))
+                                                 f"between(t,{t0:.3f},{t1:.3f})", alpha, tam_expr))
         return salida
 
     @staticmethod
@@ -75,7 +77,7 @@ class GeneradorTexto:
                     break
         return salida
 
-    def _drawtext(self, txt, fuente, tam, col, cx, y, enable, alpha):
+    def _drawtext(self, txt, fuente, tam, col, cx, y, enable, alpha, tam_expr=None):
         # El texto va en un archivo para no pelear con el escape de : , ' en FFmpeg
         self._n += 1
         archivo = os.path.join(self.tmp, f"txt_{self._n:04d}.txt")
@@ -83,5 +85,5 @@ class GeneradorTexto:
             f.write(txt)
         borde = max(2, tam // 22)
         return (f"drawtext=fontfile='{fuente}':textfile='{archivo}':expansion=none:"
-                f"fontsize={tam}:fontcolor={col}:borderw={borde}:bordercolor=black@0.6:"
+                f"fontsize='{tam_expr or tam}':fontcolor={col}:borderw={borde}:bordercolor=black@0.6:"
                 f"x={cx:.1f}-text_w/2:y={y:.1f}:enable='{enable}':alpha='{alpha}'")

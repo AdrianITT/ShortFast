@@ -1,0 +1,49 @@
+# App de CasaOS para clonar voces (necesita la app supertonic-tts en el puerto 5200). La imagen se construye aquí:
+#   docker build -t clonador-server:1.0 clonador-server/
+#   casaos-cli app-management install -f clonador-server/casaos.yml
+# Las voces creadas se guardan en /DATA/AppData/clonador-tts (sobreviven a actualizaciones).
+# Sin API_KEY queda abierto, como Kokoro: solo red local / Tailscale.
+name: clonador-tts
+services:
+  clonador:
+    image: clonador-server:1.0
+    pull_policy: never  # imagen local: no existe en ningún registro
+    container_name: clonador-tts
+    hostname: clonador-tts
+    restart: unless-stopped
+    network_mode: bridge
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - target: 5000
+        published: "5300"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /DATA/AppData/clonador-tts
+        target: /datos
+      - type: bind
+        source: /etc/localtime  # misma hora que el equipo en las fechas de las voces
+        target: /etc/localtime
+        read_only: true
+    environment:
+      SUPERTONIC_URL: http://host.docker.internal:5200
+      TAU: "0.3"  # más bajo = más parecido a la referencia, más alto = más natural
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+x-casaos:
+  author: self
+  category: self
+  hostname: ""
+  index: /docs
+  is_uncontrolled: false
+  port_map: "5300"
+  scheme: http
+  store_app_id: clonador-tts
+  title:
+    custom: Clonador de voz
+    en_us: Clonador de voz
+  description:
+    en_us: Local voice cloning (OpenVoice v2 tone converter over Supertonic). Voices in /DATA/AppData/clonador-tts.

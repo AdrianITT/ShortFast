@@ -1,0 +1,19 @@
+{% if resultados is defined and resultados is not none %}
+  <section class="seccion" role="status">
+    <h2 style="margin-top:0">{{ titulo_resultados or "Resultado" }}</h2>
+    {% if resultados %}
+      <ul class="resultados">
+        {% for archivo, estado, detalle in resultados %}
+          <li class="{{ estado }}">
+            {% if estado == "guardado" %}{{ archivo }} guardado{% if detalle %} ({{ detalle }}){% endif %}
+            {% elif estado == "omitido" %}{{ archivo }} ya existía, no se sobrescribió
+            {% else %}{{ archivo }}: {{ detalle }}
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="vacio">No se recibió ningún archivo.</p>
+    {% endif %}
+  </section>
+{% endif %}

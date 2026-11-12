@@ -24,6 +24,10 @@ class ClienteApi:
         with self._abrir("GET", ruta, None, 600) as r, open(destino, "wb") as f:
             shutil.copyfileobj(r, f)
 
+    def abrir(self, ruta, tiempo_espera=600):
+        """Como descargar(), pero entrega el flujo abierto para reenviarlo (quien llama lo cierra)."""
+        return self._abrir("GET", ruta, None, tiempo_espera)
+
     def _pedir(self, metodo, ruta, cuerpo=None, tiempo_espera=None):
         with self._abrir(metodo, ruta, cuerpo, tiempo_espera) as r:
             return json.loads(r.read().decode("utf-8"))

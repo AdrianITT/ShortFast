@@ -61,7 +61,8 @@ class RenderLargo:
         tiempos["unión"] = time.time() - t_fase
         t_fase = time.time()
         log("🎵 Mezclando voz y música...")
-        audio = MezclaAudio(guia, self.carpeta, self.ffmpeg).mezclar(plan, total, self.tmp)
+        mezcla = MezclaAudio(guia, self.carpeta, self.ffmpeg)
+        audio = mezcla.normalizar(mezcla.mezclar(plan, total, self.tmp), self.tmp)
 
         tiempos["audio"] = time.time() - t_fase
         log("📦 Exportando...")

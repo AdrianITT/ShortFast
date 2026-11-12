@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block titulo %}Biblioteca de música{% endblock %}
+{% block contenido %}
+  {% if nombre %}
+    {% include "_pasos.html" %}
+    <h2 style="margin-top:0">Elegir música de la biblioteca</h2>
+  {% else %}
+    <h1>Biblioteca de música</h1>
+  {% endif %}
+
+  {% set titulo_resultados = "Pistas añadidas" %}
+  {% include "_resultados.html" %}
+
+  {# subir e indexar arriba: antes quedaban debajo de toda la tabla #}
+  <div class="fila" style="margin:0 0 1rem">
+    <form method="post" action="/biblioteca/subir" enctype="multipart/form-data" style="flex:1 1 260px">
+      {% if nombre %}<input type="hidden" name="nombre" value="{{ nombre }}">{% endif %}
+      <label class="zona">
+        <input type="file" name="archivos" multiple required accept="audio/*">
+        <span class="texto-zona">Subir pistas a la biblioteca (elegir o soltar)</span>
+      </label>
+      <noscript><button type="submit">Subir a la biblioteca</button></noscript>
+    </form>
+    <form method="post" action="/biblioteca/indexar" title="Añade a la biblioteca la música que ya usan los proyectos (según su guía), si aún no está.">
+      {% if nombre %}<input type="hidden" name="nombre" value="{{ nombre }}">{% endif %}
+      <button class="secundario" type="submit">Indexar música de proyectos</button>
+    </form>
+  </div>
+
+  {% if resultado_indexado is defined %}
+    <section class="seccion" role="status">
+      {% if resultado_indexado %}
+        <ul class="resultado-indexado">
+          {% for proyecto, pista, estado in resultado_indexado %}
+            <li>{{ proyecto }}{% if pista %} · {{ pista }}{% endif %} — {{ estado }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="vacio">Ningún proyecto tiene música referenciada en su guia.json.</p>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  <section class="seccion">
+    {% if pistas %}
+      {% if pistas|length > 8 %}
+        <input type="search" aria-label="Buscar pista" placeholder="Buscar pista…" oninput="filtrarPistas(this.value)" style="margin-bottom:.5rem">
+      {% endif %}
+      <div class="tabla-contenedor">
+        <table class="pistas">
+          <thead><tr>{% if nombre %}<th><span class="visualmente-oculto">Acción</span></th>{% endif %}<th>Pista</th><th>Duración</th><th>Usos</th></tr></thead>
+          <tbody>
+            {% for p in pistas %}
+              <tr data-nombre="{{ p.nombre|lower }}">
+                {% if nombre %}
+                <td>
+                    <form method="post" action="/proyecto/{{ nombre }}/musica/desde-biblioteca">
+                      <input type="hidden" name="archivo" value="{{ p.nombre }}">
+                      <button class="secundario" type="submit">Usar</button>
+                    </form>
+                </td>
+                {% endif %}
+                <td>{{ p.nombre }}</td>
+                <td>{{ "%d:%02d"|format(p.duracion // 60, p.duracion % 60) if p.duracion else "—" }}</td>
+                <td>{{ p.usos }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="vacio">La biblioteca está vacía. Sube pistas o indexa la música de proyectos anteriores.</p>
+    {% endif %}
+  </section>
+
+  <script>
+    function filtrarPistas(texto) {
+      const q = texto.trim().toLowerCase();
+      document.querySelectorAll("table.pistas tbody tr").forEach(f => { f.style.display = f.dataset.nombre.includes(q) ? "" : "none"; });
+    }
+  </script>
+{% endblock %}

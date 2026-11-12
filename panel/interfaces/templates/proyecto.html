@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block titulo %}{{ nombre }} · Panel ffmpeg-api{% endblock %}
+{% block contenido %}
+  {% if not error %}
+    {% set hechos = [revision.imagenes and revision.musica, revision.voces, revision.tiene_guia, False] %}
+  {% endif %}
+  {% include "_pasos.html" %}
+
+  {% include "_resultados.html" %}
+
+  {% if error %}
+    <p class="error">{{ error }}</p>
+  {% else %}
+    {# un solo botón con el paso que toca, en vez de la lista de acciones #}
+    {% if revision.faltan %}
+      <div class="siguiente aviso-fondo">
+        <span class="aviso">Falta: {{ revision.faltan|join(", ") }}</span>
+        {% if not revision.voces %}<a class="boton secundario" href="/proyecto/{{ nombre }}/voces">Generar voces</a>
+        {% elif not revision.tiene_guia %}<a class="boton secundario" href="/proyecto/{{ nombre }}/guia">Crear guía</a>{% endif %}
+      </div>
+    {% elif revision.tiene_guia %}
+      <div class="siguiente">
+        <span>Todo listo para renderizar.</span>
+        <a class="boton" href="/proyecto/{{ nombre }}/render">Renderizar video</a>
+      </div>
+    {% else %}
+      <div class="siguiente aviso-fondo">
+        <span>Archivos listos; falta la guía.</span>
+        <a class="boton" href="/proyecto/{{ nombre }}/guia">Crear guía</a>
+      </div>
+    {% endif %}
+
+    <div class="grid-archivos">
+      {% for c in categorias %}
+        <section class="categoria">
+          <h3>{{ c.etiqueta }} <span class="cuenta">{{ c.archivos|length }}</span></h3>
+          {% if c.archivos %}
+            <details>
+              <summary>Ver archivos</summary>
+              <ul class="archivos">
+                {% for a in c.archivos %}<li>{{ a }}</li>{% endfor %}
+              </ul>
+            </details>
+          {% endif %}
+          <form method="post" action="/proyecto/{{ nombre }}/subir/{{ c.id }}" enctype="multipart/form-data">
+            <label class="zona">
+              <input type="file" name="archivos" multiple required accept="{{ c.extensiones|replace(' ', '') }}">
+              <span><span class="texto-zona">Elegir o soltar archivos</span><small>{{ c.extensiones }}</small></span>
+            </label>
+            <div class="opciones">
+              <label><input type="checkbox" name="sobrescribir" value="true"> Reemplazar si ya existe</label>
+              {% if c.id == "musica" %}
+                <label><input type="checkbox" name="guardar_en_biblioteca" value="true"> Guardar en la biblioteca</label>
+              {% endif %}
+            </div>
+            <noscript><button type="submit">Subir</button></noscript>
+          </form>
+          {% if c.id == "musica" %}
+            <a class="boton secundario" href="/proyecto/{{ nombre }}/musica/biblioteca">Elegir de la biblioteca</a>
+          {% endif %}
+        </section>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock %}

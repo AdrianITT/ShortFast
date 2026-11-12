@@ -2,8 +2,13 @@
 import sys
 import threading
 
+from .archivos import GestorArchivos
+from .biblioteca import BibliotecaMusica
 from .cliente_api import ClienteApi
-from .config import Configuracion
+from .clonador import ClienteClonador
+from .config import SERVICIO_CLONADOR, Configuracion
+from .cortador import CortadorVoz
+from .guia import GestorGuia
 from .interfaces import DISPONIBLES
 from .servicios import ServicioProyectos
 from .tts import ClienteKokoro
@@ -24,9 +29,18 @@ def construir_interfaces(config, servicio):
 
 def main():
     config = Configuracion.cargar()
-    voces = GeneradorVoces(ClienteKokoro(config.tts_url), config.carpeta_proyectos, config.tts_voz)
+    clientes = {nombre: (ClienteClonador if nombre == SERVICIO_CLONADOR else ClienteKokoro)(
+                    url, velocidad=config.tts_velocidad, clave=config.tts_clave)
+                for nombre, (url, _) in config.servicios_tts.items()}
+    motores_voz = {nombre: GeneradorVoces(clientes[nombre], config.carpeta_proyectos, voz)
+                   for nombre, (_, voz) in config.servicios_tts.items()}
+    voces = next(iter(motores_voz.values()))  # el de TTS_URL: el que usa la terminal, como antes
+    archivos = GestorArchivos(config.carpeta_proyectos)
+    guia = GestorGuia(config.carpeta_proyectos)
+    biblioteca = BibliotecaMusica(config.carpeta_musica_biblioteca)
     servicio = ServicioProyectos(ClienteApi(config.api_url), config.carpeta_descargas,
-                              config.carpeta_proyectos, voces)
+                              config.carpeta_proyectos, voces, archivos, guia, biblioteca,
+                              CortadorVoz(config.carpeta_proyectos), motores_voz, clientes.get(SERVICIO_CLONADOR))
     activas = construir_interfaces(config, servicio)
     if not activas:
         sys.exit("No hay ninguna interfaz habilitada. Revisa panel.json.")

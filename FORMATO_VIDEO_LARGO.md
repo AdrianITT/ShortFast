@@ -74,7 +74,11 @@ Igual al de los shorts, salvo lo marcado como **nuevo**.
 | `imagenes` (lista) | rutas de imagen | `medios` (lista de objetos) | **nuevo**: mezcla imagen y clip |
 | `medios[].tipo` | — | `imagen` o `clip` | **nuevo** |
 | `medios[].duracion` | `cortes_voz` (proporciones de la voz) | segundos, opcional | **nuevo**: lo que no se indique se reparte en partes iguales entre los medios sin duración |
-| `medios[].efecto` | por escena | por medio (solo imágenes) | zoom_in_lento, zoom_in, zoom_out, paneo_der, paneo_rapido, ninguno |
+| `medios[].efecto` | por escena | por medio (solo imágenes) | zoom_in_lento, zoom_in, zoom_out, zoom_out_lento, paneo_der, paneo_izq, paneo_arriba, paneo_abajo, paneo_rapido, deriva, ninguno (2026-11-09: easing suave en todos; `deriva` es rotación sutil de cámara, sin zoom/paneo) |
+| `vineta`, `grano` | `guia.json` raíz, igual en shorts | `guia.json` raíz | **nuevo (2026-11-09)**: booleanos opcionales, por defecto `false`. Se aplican a todas las escenas, antes del texto |
+| `lufs` | `guia.json` raíz, por defecto -14 | `guia.json` raíz, por defecto -14 | **nuevo (2026-11-11)**: el render largo normaliza el volumen final igual que los shorts (loudnorm en dos pasadas); `null`/`0` lo desactiva. La animación de texto `golpe` también funciona ahora en largo (antes se mostraba como `ninguna`) |
+| `lut` | `guia.json` raíz, igual en shorts | `guia.json` raíz | **nuevo (2026-11-11)**: ruta opcional a un `.cube` (LUT 3D) relativa al proyecto; se aplica antes de viñeta/grano y del texto. Si falta el archivo, el render largo avisa en «Faltan archivos» |
+| `transicion_salida.tipo` (nuevos) | igual | igual | **nuevo (2026-11-11)**: además de corte/fade/fadeblack/fadewhite/dissolve, 20 transiciones de `xfade` con su nombre tal cual (lista en `EFECTOS_DISPONIBLES.md`) |
 | `medios[].ajuste` | — | `recortar` (por defecto), `congelar`, `bucle` | **nuevo**: qué hacer si el clip dura distinto al tiempo asignado |
 | `medios[].inicio` | — | segundo del clip donde empieza | **nuevo** |
 | `medios[].encuadre` | `encuadre` por escena | `auto` (por defecto), `cubrir`, `ajustar` (solo imágenes) | **nuevo**: `cubrir` llena el cuadro recortando; `ajustar` muestra la imagen completa sobre un fondo borroso. En `auto`, las imágenes verticales usan `ajustar` y las horizontales `cubrir` |

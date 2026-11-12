@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block titulo %}Resultado de voces · {{ nombre }}{% endblock %}
+{% block contenido %}
+  {% include "_pasos.html" %}
+
+  <div class="siguiente">
+    <span>{{ "Algunos audios fallaron; puedes reintentarlos abajo." if texto_reintento else "Voces generadas." }}</span>
+    <a class="boton" href="/proyecto/{{ nombre }}/guia">Siguiente: editar guía</a>
+  </div>
+
+  <section class="seccion">
+    <ul class="resultados">
+      {% for r in resultados %}
+        <li class="{{ r.estado if r.estado in ('generado', 'omitido') else 'error' }}">
+          {% if r.estado == "generado" %}{{ r.archivo }} generado
+          {% elif r.estado == "omitido" %}{{ r.archivo }} ya existía, no se regeneró
+          {% else %}{{ r.archivo }}: {{ r.detalle }}
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% if texto_reintento %}
+      <form method="post" action="/proyecto/{{ nombre }}/voces/generar" class="fila">
+        <textarea name="texto" style="display:none">{{ texto_reintento }}</textarea>
+        <input type="hidden" name="sobrescribir" value="true">
+        <input type="hidden" name="velocidad" value="{{ velocidad }}">
+        <input type="hidden" name="motor" value="{{ motor }}">
+        <button type="submit">Reintentar los fallidos</button>
+      </form>
+    {% endif %}
+  </section>
+{% endblock %}

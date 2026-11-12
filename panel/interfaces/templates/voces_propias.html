@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block titulo %}Mis voces{% endblock %}
+{% block contenido %}
+  <h1>Mis voces</h1>
+  <p class="ayuda">Clona una voz a partir de una grabación. Supertonic pone la pronunciación (con la voz base que elijas) y el clonador le pone el timbre de la grabación. Después la voz aparece en <strong>Voces → Servicio «Mi voz»</strong>.</p>
+
+  {% if mensaje %}<p class="siguiente" role="status">{{ mensaje }}</p>{% endif %}
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  <section class="seccion">
+    <h2 style="margin-top:0">Nueva voz</h2>
+    <ul class="ayuda">
+      <li>Entre <strong>20 s y 1 min</strong> de voz hablando con naturalidad (mejor leyendo algo parecido a tus guiones).</li>
+      <li>Una sola persona, sin música y con el mínimo ruido de fondo; el micrófono cerca.</li>
+      <li>Solo tu voz o la de alguien que te dé permiso.</li>
+    </ul>
+    <form method="post" action="/voces-propias" enctype="multipart/form-data" id="nueva-voz">
+      <label class="zona" data-manual>
+        <input type="file" name="grabacion" required accept="audio/*,video/*">
+        <span class="texto-zona">Elegir o soltar la grabación</span>
+      </label>
+      <div class="fila" style="margin-top:.6rem">
+        <label class="campo">Nombre
+          <input name="nombre_voz" required minlength="2" maxlength="40" value="{{ nombre_voz }}" placeholder="mi_voz">
+        </label>
+        <label class="campo" title="La voz de Supertonic que pone la pronunciación: elige una del mismo tipo que la grabación (M = hombre, F = mujer).">Voz base
+          <select name="voz_base">
+            {% for v in voces_base %}<option value="{{ v }}"{% if v == voz_base %} selected{% endif %}>{{ v }} ({{ "hombre" if v.startswith("M") else "mujer" }})</option>{% endfor %}
+          </select>
+        </label>
+        <span class="empuje"></span>
+        <button type="submit">Crear voz</button>
+      </div>
+      <p class="ayuda" id="creando" hidden>Creando la voz… puede tardar 2–4 minutos (más la primera vez con cada voz base). No cierres la página.</p>
+    </form>
+  </section>
+
+  <section class="seccion">
+    <h2 style="margin-top:0">Voces creadas</h2>
+    {% if voces %}
+      <ul class="archivos">
+        {% for v in voces %}
+          <li class="fila">
+            <span><strong>{{ v.nombre }}</strong> · base {{ v.voz_base }} · {{ v.duracion }} s · {{ v.creada }}</span>
+            <span class="empuje"></span>
+            {# preload="none": la muestra se genera al pulsar ▶ la primera vez (tarda unos segundos) #}
+            <audio controls preload="none" src="/voces-propias/{{ v.nombre }}/muestra"></audio>
+            <form method="post" action="/voces-propias/{{ v.nombre }}/borrar"
+                  onsubmit="return confirm('¿Borrar la voz «{{ v.nombre }}»? No se puede deshacer.')">
+              <button class="secundario" type="submit">Borrar</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="vacio">Todavía no hay voces. Sube una grabación arriba.</p>
+    {% endif %}
+  </section>
+
+  <script>
+    document.getElementById("nueva-voz").addEventListener("submit", e => {
+      document.getElementById("creando").hidden = false;
+      e.target.querySelector("button[type=submit]").disabled = true;
+    });
+  </script>
+{% endblock %}

@@ -1,27 +1,34 @@
-# Arranque completo: `docker compose up -d`. Configuración en el archivo .env (ver .env.example).
-name: ffmpeg-api
+# ShortFast: API de render + panel web + voces. Instalación: ./instalar.sh (ver GUIA_INSTALACION.md).
+# Arranque a mano: `docker compose up -d --build`. Configuración en .env (ver .env.example).
+# Voces por perfiles (COMPOSE_PROFILES en .env): supertonic, clonador, kokoro, edge.
+name: ${COMPOSE_PROJECT_NAME:-shortfast}
+
+x-voz: &voz  # común a los servicios de voz
+  restart: unless-stopped
 
 services:
   # Prepara las carpetas de datos con los permisos correctos y termina.
   preparar-datos:
     build: .
-    image: ffmpeg-api
+    image: shortfast-api
     user: root
     entrypoint: ["sh", "-c"]
     command:
       - |
-        mkdir -p /data/proyectos /data/salida /data/plantilla
-        chown ${PUID:-1000}:${PGID:-1000} /data /data/proyectos /data/salida /data/plantilla
+        mkdir -p /data/proyectos /data/salida /data/plantilla /data/proyectos_largos /data/salida_largos \
+                 /data/musica_biblioteca /data/descargas /data/voces_propias
+        chown ${PUID:-1000}:${PGID:-1000} /data /data/proyectos /data/salida /data/plantilla /data/proyectos_largos \
+              /data/salida_largos /data/musica_biblioteca /data/descargas
     volumes:
       - ${DATA_DIR:-./datos}:/data
 
   ffmpeg-api:
     build: .
-    image: ffmpeg-api
+    image: shortfast-api
     user: "${PUID:-1000}:${PGID:-1000}"
     restart: unless-stopped
     ports:
-      - "${API_PORT:-8123}:8123"
+      - "${API_PORT:-8123}:8123"  # abierto en la red: lo usa n8n
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
@@ -33,12 +40,102 @@ services:
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8123/health', timeout=3)"]
       interval: 30s
-      timeout: 5s
+      timeout: 20s  # /health lanza `ffmpeg -version`: con el equipo cargado puede pasar de 5 s
+      start_period: 60s
       retries: 3
 
-  # Voz (Kokoro TTS, en CPU). Si ya tienes uno corriendo, comenta este servicio y apunta TTS_URL al tuyo.
-  kokoro:
-    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+  # Panel web (proyectos, voces, guía, render, biblioteca, «Mis voces»).
+  panel:
+    build:
+      context: .
+      dockerfile: panel/Dockerfile
+    image: shortfast-panel
+    user: "${PUID:-1000}:${PGID:-1000}"
     restart: unless-stopped
     ports:
-      - "${KOKORO_PORT:-8880}:8880"
+      - "${PANEL_PORT:-8090}:8090"
+    environment:
+      FFMPEG_API_URL: http://ffmpeg-api:8123
+      DATA_DIR: /data
+      PROYECTOS_DIR: /data/proyectos
+      DESCARGAS_DIR: /data/descargas
+      # Dentro de Docker cada voz se llama por su nombre de servicio; solo se ofrecen las instaladas.
+      SERVICIOS_VOZ: ${COMPOSE_PROFILES:-supertonic,clonador}
+      TTS_URL: ${PANEL_TTS_URL:-http://supertonic:5000}
+      TTS_VOZ: ${PANEL_TTS_VOZ:-M3}
+      TTS_VELOCIDAD: ${TTS_VELOCIDAD:-1.0}
+      TTS_API_KEY: ${TTS_API_KEY:-}
+      KOKORO_URL: http://kokoro:8880
+      SUPERTONIC_URL: http://supertonic:5000
+      SUPERTONIC_VOZ: ${SUPERTONIC_VOZ:-M3}
+      EDGE_TTS_URL: http://edge-tts:5050
+      EDGE_TTS_VOZ: ${EDGE_TTS_VOZ:-es-MX-DaliaNeural}
+      CLONADOR_URL: http://clonador:5000
+      PANEL_CLAVE: ${PANEL_CLAVE:-}
+    volumes:
+      - ${DATA_DIR:-./datos}:/data
+    depends_on:
+      preparar-datos:
+        condition: service_completed_successfully
+
+  # ── Voces. Sus puertos solo se publican en este equipo (127.0.0.1) salvo VOCES_IP=0.0.0.0 ──
+
+  # Supertonic 3: voz local en español (la recomendada). También la necesita el clonador.
+  supertonic:
+    <<: *voz
+    profiles: ["supertonic", "clonador"]
+    build: ./supertonic-server
+    image: shortfast-supertonic
+    ports:
+      - "${VOCES_IP:-127.0.0.1}:${SUPERTONIC_PORT:-5200}:5000"
+    environment:
+      API_KEY: ${TTS_API_KEY:-}
+      VOZ_DEFECTO: ${SUPERTONIC_VOZ:-M3}
+      IDIOMA: es
+      PASOS: ${SUPERTONIC_PASOS:-8}
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # Clonador: voces propias a partir de una grabación (OpenVoice v2 sobre Supertonic). Imagen de ~3 GB.
+  clonador:
+    <<: *voz
+    profiles: ["clonador"]
+    build: ./clonador-server
+    image: shortfast-clonador
+    ports:
+      - "${VOCES_IP:-127.0.0.1}:${CLONADOR_PORT:-5300}:5000"
+    environment:
+      API_KEY: ${TTS_API_KEY:-}
+      SUPERTONIC_URL: http://supertonic:5000
+      TAU: ${CLONADOR_TAU:-0.3}
+    volumes:
+      - ${DATA_DIR:-./datos}/voces_propias:/datos
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - supertonic
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+
+  # Kokoro: voz local (más voces en inglés). Imagen externa.
+  kokoro:
+    <<: *voz
+    profiles: ["kokoro"]
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    ports:
+      - "${VOCES_IP:-127.0.0.1}:${KOKORO_PORT:-8880}:8880"
+
+  # Edge TTS: voces de Microsoft (requiere internet).
+  edge-tts:
+    <<: *voz
+    profiles: ["edge"]
+    build: ./edge-tts-server
+    image: shortfast-edge-tts
+    ports:
+      - "${VOCES_IP:-127.0.0.1}:${EDGE_TTS_PORT:-5050}:5050"
+    environment:
+      API_KEY: ${TTS_API_KEY:-}
+      VOZ_DEFECTO: ${EDGE_TTS_VOZ:-es-MX-DaliaNeural}

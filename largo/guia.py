@@ -3,9 +3,13 @@ import json
 import os
 from dataclasses import dataclass, field
 
-EFECTOS = {"zoom_in_lento", "zoom_in", "zoom_out", "zoom_out_lento", "paneo_der", "paneo_rapido", "ninguno"}
-TRANSICIONES = {"corte", "fade", "fadeblack", "fadewhite", "dissolve"}
-ANIMACIONES = {"ninguna", "fade", "palabra_por_palabra", "golpe"}  # golpe se muestra como ninguna, igual que en shorts
+EFECTOS = {"zoom_in_lento", "zoom_in", "zoom_out", "zoom_out_lento", "paneo_der", "paneo_izq",
+           "paneo_arriba", "paneo_abajo", "paneo_rapido", "deriva", "ninguno"}
+TRANSICIONES = {"corte", "fade", "fadeblack", "fadewhite", "dissolve",  # el resto son nombres de xfade tal cual
+                "wipeleft", "wiperight", "wipeup", "wipedown", "slideleft", "slideright", "slideup", "slidedown",
+                "smoothleft", "smoothright", "smoothup", "smoothdown", "circleopen", "circleclose", "radial",
+                "zoomin", "hblur", "pixelize", "fadegrays", "distance"}
+ANIMACIONES = {"ninguna", "fade", "palabra_por_palabra", "golpe"}
 POSICIONES = {"arriba", "centro", "abajo", "abajo_firma", "izquierda", "derecha"}
 AJUSTES = {"recortar", "congelar", "bucle"}
 ENCUADRES = {"auto", "cubrir", "ajustar"}
@@ -81,6 +85,10 @@ class Guia:
     duracion_max: float
     musica: dict
     escenas: list[Escena]
+    vineta: bool = False
+    grano: bool = False
+    lut: str | None = None  # archivo .cube relativo al proyecto
+    lufs: float | None = -14  # volumen final; None/0 = sin normalizar (igual que en shorts)
 
     @classmethod
     def cargar(cls, ruta):
@@ -134,10 +142,11 @@ class Guia:
         return cls(proyecto=d["proyecto"], formato=fmt, fuentes=d["fuentes"],
                    voz_retraso=d.get("voz_retraso", 0.3),
                    pausa_entre_escenas=d.get("pausa_entre_escenas", 0.4),
-                   duracion_max=d.get("duracion_max", 1800), musica=d["musica"], escenas=escenas)
+                   duracion_max=d.get("duracion_max", 1800), musica=d["musica"], escenas=escenas,
+                   vineta=d.get("vineta", False), grano=d.get("grano", False), lut=d.get("lut"), lufs=d.get("lufs", -14))
 
     def archivos_faltantes(self, carpeta):
-        rutas = [self.musica["archivo"]] + list(self.fuentes.values())
+        rutas = [self.musica["archivo"]] + list(self.fuentes.values()) + ([self.lut] if self.lut else [])
         for e in self.escenas:
             rutas += [m.archivo for m in e.medios]
             if e.voz:

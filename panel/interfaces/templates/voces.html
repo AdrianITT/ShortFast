@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titulo %}Generar voces · {{ nombre }}{% endblock %}
+{% block contenido %}
+  {% include "_pasos.html" %}
+
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  <p class="ayuda">¿Grabaste tú la voz en un solo audio? <a href="/proyecto/{{ nombre }}/voces/cortar">Subir la grabación y cortarla en tramos</a>{% if hay_clonador %} · ¿Quieres generar con tu voz? <a href="/voces-propias">Crear una voz en «Mis voces»</a>{% endif %}</p>
+
+  <section class="seccion">
+    <form method="post" action="/proyecto/{{ nombre }}/voces/preparar">
+      <label for="guion"><strong>Guion</strong></label>
+      <p class="ayuda">Una línea por audio: <code>archivo.mp3 | texto</code>. También acepta el script de bash con <code>VOZ=</code> y <code>g "archivo.mp3" "texto"</code> (solo se lee, nunca se ejecuta). Manda la voz que elijas abajo, aunque el guion traiga <code>voz:</code> o <code>VOZ=</code>.</p>
+      <textarea id="guion" name="texto" rows="14" spellcheck="false" style="width:100%; font-family: monospace; margin-top:.5rem" required autofocus>{{ texto }}</textarea>
+      <div class="fila">
+        {% include "_voz_velocidad.html" %}
+        <span class="empuje"></span>
+        <button type="submit">Revisar antes de generar</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}

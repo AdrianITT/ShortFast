@@ -27,7 +27,11 @@ class RenderizadorEscena:
         textos = self.texto.filtros(plan)
         filtros.append(f"{''.join(etiquetas)}concat=n={len(etiquetas)}:v=1:a=0[c]" if len(etiquetas) > 1
                        else f"{etiquetas[0]}null[c]")
-        filtros.append("[c]" + (",".join(textos) if textos else "null") + "[t]")
+        # estilo (LUT/viñeta/grano, opt-in en guia.json) va antes del texto, para que el texto quede nítido encima
+        g = self.guia
+        estilo = ([f"lut3d=file='{os.path.join(self.carpeta, g.lut)}'"] if g.lut else []) + \
+                 (["vignette"] if g.vineta else []) + (["noise=alls=6:allf=t+u"] if g.grano else [])
+        filtros.append("[c]" + (",".join(estilo + textos) if (estilo or textos) else "null") + "[t]")
 
         # (nombre, primer frame, frame final exclusivo); de la última escena no hace falta la cola
         h, c = plan.td_prev_frames, plan.frames_cuerpo

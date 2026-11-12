@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titulo %}Confirmar voces · {{ nombre }}{% endblock %}
+{% block contenido %}
+  {% include "_pasos.html" %}
+
+  <section class="seccion">
+    <h2 style="margin-top:0">Revisar: {{ tramos|length }} audio{{ "s" if tramos|length != 1 }}</h2>
+    {% if voz_guion %}<p class="aviso">El guion pide la voz «{{ voz_guion }}», pero se usará la que elegiste: «{{ voz }}».</p>{% endif %}
+    {% if hay_existentes %}<p class="aviso">Algunos audios ya existen: si no marcas «Regenerarlos», se quedan como están (con su voz anterior).</p>{% endif %}
+    <ul class="archivos">
+      {% for t in tramos %}
+        <li>{{ t.archivo }} ({{ t.caracteres }} caracteres){% if t.ya_existe %} <span class="aviso">— ya existe</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+
+    <form method="post" action="/proyecto/{{ nombre }}/voces/generar">
+      <textarea name="texto" style="display:none">{{ texto }}</textarea>
+      <div class="fila">
+        {% include "_voz_velocidad.html" %}
+        {% if hay_existentes %}
+          <label class="campo aviso"><span>Algunos ya existen</span>
+            <span><input type="checkbox" name="sobrescribir" value="true"> Regenerarlos</span></label>
+        {% endif %}
+        <span class="empuje"></span>
+        {# vuelve al guion con el texto, la voz y la velocidad tal cual (antes se perdía lo escrito) #}
+        <button class="secundario" type="submit" formaction="/proyecto/{{ nombre }}/voces/editar">Editar el guion</button>
+        <button type="submit">Generar {{ tramos|length }} audio{{ "s" if tramos|length != 1 }}</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}

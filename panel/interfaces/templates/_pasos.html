@@ -1,0 +1,21 @@
+{# Cabecera de todas las pantallas de un proyecto: nombre + pasos del flujo, a un clic cada uno. #}
+{% set ruta = request.url.path %}
+{% set base_p = "/proyecto/" ~ nombre %}
+{% set pasos = [
+  ("Archivos", base_p, ruta == base_p or "/musica" in ruta),
+  ("Voces", base_p ~ "/voces", "/voces" in ruta),
+  ("Guía", base_p ~ "/guia", "/guia" in ruta),
+  ("Render", base_p ~ "/render", "/render" in ruta),
+] %}
+<div class="cabecera-proyecto">
+  <a class="volver-arriba" href="/" title="Todos los proyectos">&larr;</a>
+  <h1>{{ nombre }}</h1>
+</div>
+<nav class="pasos" aria-label="Pasos del proyecto">
+  {% for etiqueta, href, actual in pasos %}
+    <a href="{{ href }}" {% if actual %}aria-current="step"{% endif %}>
+      <span class="num">{{ loop.index }}</span>{{ etiqueta }}
+      {% if hechos is defined and hechos[loop.index0] %}<span class="hecho" aria-label="completo">✓</span>{% endif %}
+    </a>
+  {% endfor %}
+</nav>

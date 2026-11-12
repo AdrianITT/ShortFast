@@ -22,14 +22,25 @@ class InterfazTerminal(Interfaz):
                 return
 
     def _menu_principal(self):
-        opcion = self._elegir("Menú principal", ["Elegir un proyecto", "Crear proyecto nuevo"], "Salir")
+        opciones = ["Elegir un proyecto", "Crear proyecto nuevo", "Indexar música de proyectos anteriores"]
+        opcion = self._elegir("Menú principal", opciones, "Salir")
         if opcion == 0:
             return False
         if opcion == 1:
             self._menu_proyectos()
-        else:
+        elif opcion == 2:
             self._crear()
+        else:
+            self._indexar_biblioteca()
         return True
+
+    def _indexar_biblioteca(self):
+        resultados = self.servicio.indexar_biblioteca()
+        if not resultados:
+            print("Ningún proyecto tiene música referenciada en su guia.json.")
+            return
+        for proyecto, pista, estado in resultados:
+            print(f"  {proyecto}" + (f" · {pista}" if pista else "") + f" — {estado}")
 
     def _menu_proyectos(self):
         proyectos = self.servicio.listar()
@@ -88,13 +99,39 @@ class InterfazTerminal(Interfaz):
                 print("Cancelado.")
                 return
             guion = voces.preparar(texto)
-            self._generar_voces(nombre, guion)
+            if not guion.voz:  # sin voz en el guion: ofrece elegir (Enter = la de siempre)
+                guion.voz = self._elegir_voz(voces)
+            self._generar_voces(nombre, guion, self._elegir_velocidad(voces))
         finally:
             texto = guion = None  # el guion pegado no se conserva
 
-    def _generar_voces(self, nombre, guion):
+    @staticmethod
+    def _elegir_voz(voces):
+        """Lista numerada de voces; Enter, un id o un número. Devuelve None para la de por defecto."""
+        ids = []
+        for titulo, grupo in voces.voces_disponibles():
+            print(f"\n{titulo}:")
+            for i in grupo:
+                ids.append(i)
+                print(f"  {len(ids):>2}) {i}")
+        eleccion = input(f"\nVoz (número o nombre; Enter = {voces.voz_por_defecto}): ").strip()
+        if eleccion.isdigit() and 1 <= int(eleccion) <= len(ids):
+            return ids[int(eleccion) - 1]
+        return eleccion if eleccion in ids else None
+
+    @staticmethod
+    def _elegir_velocidad(voces):
+        """Pide la velocidad (Enter = la de por defecto); repite si no es válida."""
+        while True:
+            texto = input(f"Velocidad (0.5-1.5; Enter = {voces.velocidad_por_defecto}): ")
+            try:
+                return voces.velocidad_valida(texto)
+            except ErrorGuionVoces as e:
+                print(f"⚠ {e}")
+
+    def _generar_voces(self, nombre, guion, velocidad=None):
         voces = self.servicio.voces
-        print(f"\nVoz: {guion.voz or voces.voz_por_defecto} · {len(guion.tramos)} tramos")
+        print(f"\nVoz: {guion.voz or voces.voz_por_defecto} · Velocidad: {velocidad or voces.velocidad_por_defecto} · {len(guion.tramos)} tramos")
         for t in guion.tramos:
             print(f"  • {t.archivo} ({len(t.texto)} caracteres)")
         existentes = voces.existentes(nombre, guion)
@@ -107,7 +144,7 @@ class InterfazTerminal(Interfaz):
             return
         while True:
             fallidos, generados = [], 0
-            for r in voces.generar(nombre, guion, sobrescribir):
+            for r in voces.generar(nombre, guion, sobrescribir, velocidad):
                 if r.estado == "error":
                     fallidos.append(r.archivo)
                     print(f"  ❌ {r.archivo}: {r.detalle}")

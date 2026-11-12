@@ -1,0 +1,39 @@
+# App de CasaOS para Supertonic (voz local en español). La imagen se construye en este equipo:
+#   docker build -t supertonic-server:1.0 supertonic-server/
+#   casaos-cli app-management install -f supertonic-server/casaos.yml
+# Sin API_KEY queda abierto, como Kokoro: solo red local / Tailscale.
+name: supertonic-tts
+services:
+  supertonic:
+    image: supertonic-server:1.0
+    pull_policy: never  # imagen local: no existe en ningún registro
+    container_name: supertonic-tts
+    hostname: supertonic-tts
+    restart: unless-stopped
+    network_mode: bridge
+    ports:
+      - target: 5000
+        published: "5200"
+        protocol: tcp
+    environment:
+      VOZ_DEFECTO: F1
+      IDIOMA: es
+      PASOS: "8"  # 5 = más rápido, 8 = normal, 12 = más calidad
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+x-casaos:
+  author: self
+  category: self
+  hostname: ""
+  index: /docs
+  is_uncontrolled: false
+  port_map: "5200"
+  scheme: http
+  store_app_id: supertonic-tts
+  title:
+    custom: Supertonic TTS
+    en_us: Supertonic TTS
+  description:
+    en_us: Local Spanish text-to-speech (Supertonic 3, CPU, offline). OpenAI-compatible API on /v1/audio/speech.

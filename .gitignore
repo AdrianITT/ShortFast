@@ -9,3 +9,12 @@ wf.json
 wf_fix.json
 wf_result.json
 datos/
+.venv/
+
+# Claves SSH: nunca al repositorio (se encontró un par en la raíz el 2026-11-12)
+041999
+041999.pub
+id_*
+*.pem
+prueba.mp3
+.claude/

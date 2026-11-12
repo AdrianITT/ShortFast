@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block titulo %}Proyectos · Panel ffmpeg-api{% endblock %}
+{% block contenido %}
+  {% set RECIENTES = 12 %}
+  {% set pendientes = proyectos|rejectattr("estado", "equalto", "ok")|list %}
+  {% set listos = proyectos|selectattr("estado", "equalto", "ok")|list %}
+
+  {% macro tarjeta(p, extra=False) %}
+    <a class="tarjeta{{ ' extra' if extra }}" href="/proyecto/{{ p.proyecto }}" data-nombre="{{ p.proyecto|lower|replace('_', ' ') }}">
+      {% set num, tema = p.proyecto|partes_nombre %}
+      <strong>{% if num %}<span class="num-short">#{{ num }}</span> {% endif %}{{ tema }}</strong>
+      {% if p.estado != "ok" %}
+        <span class="chip {{ p.estado }}">{{ etiqueta_estado.get(p.estado, p.estado) }}</span>
+        {% if not p.tiene_guia %}<span class="estado">sin guía</span>{% endif %}
+      {% endif %}
+    </a>
+  {% endmacro %}
+
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  {# barra fija: buscar y crear siempre a mano, aunque la lista sea larga #}
+  <div class="barra-proyectos">
+    <input type="search" id="buscador" aria-label="Buscar proyecto" autocomplete="off"
+           placeholder="Buscar entre {{ proyectos|length }} proyectos…  (tecla /)">
+    <details class="nuevo">
+      <summary class="boton">+ Nuevo proyecto</summary>
+      <form class="crear-flotante" method="post" action="/crear">
+        <label for="nuevo-nombre" class="visualmente-oculto">Nombre del proyecto nuevo</label>
+        <input type="text" id="nuevo-nombre" name="nombre" placeholder="ej. short_80_estoicos"
+               pattern="[A-Za-z0-9_\-]+" title="Solo letras, números, guion y guion bajo (sin espacios)" required>
+        <button type="submit">Crear</button>
+      </form>
+    </details>
+  </div>
+  <p id="cuenta-busqueda" class="estado" hidden></p>
+
+  {% if proyectos %}
+    {% if pendientes %}
+      <section class="grupo" data-grupo>
+        <h2>Pendientes <span class="cuenta">{{ pendientes|length }}</span></h2>
+        <div class="grid-proyectos">
+          {% for p in pendientes %}{{ tarjeta(p) }}{% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    {% if listos %}
+      <section class="grupo" data-grupo>
+        <h2>Listos <span class="cuenta">{{ listos|length }}</span></h2>
+        <div class="grid-proyectos" id="listos">
+          {% for p in listos %}{{ tarjeta(p, extra=loop.index > RECIENTES) }}{% endfor %}
+        </div>
+        {% if listos|length > RECIENTES %}
+          <button class="secundario ver-todos" id="ver-todos" type="button">Ver los {{ listos|length }}</button>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    <p id="sin-resultados" class="vacio" hidden>Ningún proyecto coincide con la búsqueda.</p>
+  {% else %}
+    <p class="vacio">Aún no hay proyectos. Pulsa «+ Nuevo proyecto» para crear el primero.</p>
+  {% endif %}
+
+  <script>
+    // shortcut: todo se filtra en el navegador; con miles de proyectos convendría paginar en el servidor.
+    const buscador = document.getElementById("buscador");
+    const tarjetas = [...document.querySelectorAll(".grupo .tarjeta")];
+    const cuenta = document.getElementById("cuenta-busqueda");
+    const verTodos = document.getElementById("ver-todos");
+    let expandido = false;
+
+    function aplicar() {
+      const q = buscador.value.trim().toLowerCase().replace(/_/g, " ");  // «julio cano» o «julio_cano»
+      let visibles = [];
+      tarjetas.forEach((t) => {
+        // sin búsqueda: los listos viejos quedan ocultos hasta «Ver todos»; con búsqueda: se busca en todos
+        const ver = q ? t.dataset.nombre.includes(q) : (expandido || !t.classList.contains("extra"));
+        t.hidden = !ver;
+        if (ver) visibles.push(t);
+      });
+      document.querySelectorAll("[data-grupo]").forEach((g) => {
+        g.hidden = !g.querySelector(".tarjeta:not([hidden])");
+      });
+      if (verTodos) verTodos.hidden = !!q || expandido;
+      cuenta.hidden = !q;
+      cuenta.textContent = `${visibles.length} coincidencia${visibles.length === 1 ? "" : "s"}` +
+                           (visibles.length === 1 ? " — Enter para abrir" : "");
+      document.getElementById("sin-resultados").hidden = !q || visibles.length > 0;
+      return visibles;
+    }
+
+    if (buscador) {
+      buscador.addEventListener("input", aplicar);
+      buscador.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          const v = aplicar();
+          if (v.length === 1) location.href = v[0].href;
+        } else if (e.key === "Escape") {
+          buscador.value = "";
+          aplicar();
+        }
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "/" && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
+          e.preventDefault();
+          buscador.focus();
+        }
+      });
+    }
+    if (verTodos) verTodos.addEventListener("click", () => { expandido = true; aplicar(); });
+    document.querySelector("details.nuevo")?.addEventListener("toggle", (e) => {
+      if (e.target.open) document.getElementById("nuevo-nombre").focus();
+    });
+    aplicar();
+  </script>
+{% endblock %}

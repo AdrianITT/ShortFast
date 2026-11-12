@@ -1,0 +1,28 @@
+{# Servicio + voz + velocidad en una sola fila (pantallas de guion y de confirmar). #}
+{% if motores|length > 1 %}
+  {# al cambiar de servicio se recarga el guion con la lista de voces de ese servicio, sin perder el texto #}
+  <label class="campo" title="Kokoro funciona sin internet; Edge usa las voces de Microsoft y necesita internet.">Servicio
+    <select name="motor" onchange="this.form.action='/proyecto/{{ nombre }}/voces/editar'; this.form.submit()">
+      {% for m in motores %}<option value="{{ m }}"{% if m == motor %} selected{% endif %}>{{ m }}</option>{% endfor %}
+    </select>
+  </label>
+{% else %}
+  <input type="hidden" name="motor" value="{{ motor }}">
+{% endif %}
+{% if not grupos %}
+  {# servicio sin voces (p. ej. «Mi voz» antes de crear ninguna) #}
+  <p class="aviso">Este servicio no tiene voces todavía{% if motor == "Mi voz" %}: <a href="/voces-propias">crea una en «Mis voces»</a>{% endif %}.</p>
+{% endif %}
+<label class="campo"{% if not grupos %} hidden{% endif %}>Voz
+  <select name="voz">
+    {% if voz not in grupos|map(attribute=1)|sum(start=[]) %}<option value="{{ voz }}" selected>{{ voz }} (no está en la lista)</option>{% endif %}
+    {% for titulo, ids in grupos %}
+      <optgroup label="{{ titulo }}">
+        {% for i in ids %}<option value="{{ i }}"{% if i == voz %} selected{% endif %}>{{ i }}</option>{% endfor %}
+      </optgroup>
+    {% endfor %}
+  </select>
+</label>
+<label class="campo" title="1.0 es la normal; 0.90–0.95 suena más pausada y natural en shorts. Rango 0.5–1.5.">Velocidad
+  <input name="velocidad" type="number" step="0.01" min="0.5" max="1.5" value="{{ velocidad }}" style="width:6em">
+</label>

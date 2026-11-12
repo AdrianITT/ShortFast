@@ -149,17 +149,18 @@ Efectos disponibles en shorts: `zoom_in_lento`, `zoom_in`, `zoom_out`, `zoom_out
 
 ## 3. Cómo se instala
 
-Requisitos: **Docker con Docker Compose** y **Python 3.8+** (solo para el panel; no necesita instalar paquetes).
+Guía completa (requisitos, CasaOS, voces, actualizar, problemas): **[GUIA_INSTALACION.md](GUIA_INSTALACION.md)**.
+
+Requisitos: Linux x86_64 con **Docker y Docker Compose**.
 
 ```bash
-git clone <este repositorio> ffmpeg-api && cd ffmpeg-api
-
-cp .env.example .env        # ajusta si quieres (ver tabla de abajo)
-docker compose up -d        # construye y arranca todo
-python3 -m panel            # abre el menú
+git clone <este repositorio> shortfast && cd shortfast
+./instalar.sh               # crea .env, construye y arranca API + panel web + las voces elegidas
 ```
 
-`docker compose up -d` levanta tres piezas: prepara las carpetas de datos, la API y Kokoro (voz). La primera vez descarga imágenes, y Kokoro puede tardar un minuto en estar listo.
+Levanta, con Docker: las carpetas de datos, la API (8123), el **panel web** (8090) y las voces elegidas por perfiles (`supertonic`, `clonador`, `kokoro`, `edge`; por defecto Supertonic + clonador). Con CasaOS se registra además como una app «ShortFast». `./actualizar.sh` y `./desinstalar.sh` hacen lo que dicen (los datos se conservan).
+
+El **panel de terminal** sigue disponible fuera de Docker: `python3 -m panel` con las variables de la última sección de `.env.example`.
 
 **Comandos de shell (opcional).** Para tener `nuevo-short`, `render-short` y `guia-short` en cualquier carpeta:
 

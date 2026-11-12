@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block titulo %}Render · {{ nombre }}{% endblock %}
+{% block contenido %}
+  {% include "_pasos.html" %}
+
+  {% if error %}
+    <div class="siguiente aviso-fondo">
+      <span class="error" style="margin:0">{{ error }}</span>
+      <form method="post" action="/proyecto/{{ nombre }}/render"><button type="submit">Reintentar</button></form>
+    </div>
+  {% else %}
+    {# las acciones van arriba, antes del log, para no tener que bajar a buscarlas #}
+    <div class="siguiente {{ '' if estado.estado == 'ok' else 'aviso-fondo' }}">
+      <span id="linea-estado" role="status">
+        <span id="linea-chip" class="chip {{ estado.estado }}">
+          <strong id="texto-estado">{{ etiqueta_estado.get(estado.estado, estado.estado) }}</strong>
+        </span>
+        {% if estado.estado == "renderizando" %}<span class="estado">Progreso en vivo; puedes cerrar la página, el render sigue en el servidor.</span>{% endif %}
+      </span>
+      {% if estado.estado == "ok" %}
+        <span class="fila" style="margin:0">
+          <form method="post" action="/proyecto/{{ nombre }}/render"><button class="secundario" type="submit">Renderizar de nuevo</button></form>
+          <a class="boton" href="/proyecto/{{ nombre }}/video">Descargar video</a>
+        </span>
+      {% elif estado.estado != "renderizando" %}
+        <form method="post" action="/proyecto/{{ nombre }}/render">
+          <button type="submit">{{ "Iniciar render" if estado.estado == "sin_render" else "Reintentar render" }}</button>
+        </form>
+      {% endif %}
+    </div>
+
+    {% if estado.estado == "ok" %}
+      {# vista previa: revisar el video sin descargarlo #}
+      <video class="vista" controls preload="none" src="/proyecto/{{ nombre }}/video"></video>
+    {% endif %}
+
+    <details {% if estado.estado != "ok" %}open{% endif %}>
+      <summary>Registro del render</summary>
+      <pre id="log" class="guia-json">{{ estado.log or "" }}</pre>
+    </details>
+  {% endif %}
+
+  {% if estado and estado.estado == "renderizando" %}
+  <script>
+    const fuente = new EventSource("/proyecto/{{ nombre }}/render/eventos");
+    const ETIQUETAS = {{ etiqueta_estado|tojson }};
+    const log = document.getElementById("log");
+    fuente.onmessage = (ev) => {
+      const e = JSON.parse(ev.data);
+      document.getElementById("texto-estado").textContent = ETIQUETAS[e.estado] || e.estado;
+      document.getElementById("linea-chip").className = "chip " + e.estado;
+      log.textContent = e.log || "";
+      log.scrollTop = log.scrollHeight;
+      if (e.estado !== "renderizando") {
+        fuente.close();
+        location.reload();
+      }
+    };
+    fuente.onerror = () => fuente.close();
+  </script>
+  {% endif %}
+{% endblock %}

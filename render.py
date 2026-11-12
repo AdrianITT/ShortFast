@@ -29,6 +29,11 @@ XFADE = {
     "fadewhite": "fadewhite",  # flash blanco
     "dissolve": "dissolve",
 }
+# resto de transiciones de xfade, con el mismo nombre en la guía
+XFADE.update({t: t for t in (
+    "wipeleft", "wiperight", "wipeup", "wipedown", "slideleft", "slideright", "slideup", "slidedown",
+    "smoothleft", "smoothright", "smoothup", "smoothdown", "circleopen", "circleclose", "radial",
+    "zoomin", "hblur", "pixelize", "fadegrays", "distance")})
 
 ENC_CLIP = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
             "-pix_fmt", "yuv420p", "-r", str(FPS)]
@@ -76,21 +81,72 @@ def trans_dur(tr):
 
 def zoompan(efecto, n):
     cx, cy = "iw/2-(iw/zoom/2)", "ih/2-(ih/zoom/2)"
+    # ease-in-out (smoothstep) en vez de on/n lineal: el movimiento arranca y frena suave, no en seco
+    ease = f"(3*pow(on/{n},2)-2*pow(on/{n},3))"
+    if efecto == "deriva":  # ligera rotación de cámara, sin zoom ni paneo (look "cámara en mano")
+        dur = n / FPS
+        t_ease = f"(3*pow(t/{dur:.4f},2)-2*pow(t/{dur:.4f},3))"
+        angulo = f"(-1+2*{t_ease})*0.015"  # ±0.86° a lo largo de la escena
+        return (f"zoompan=z='1.06':x='{cx}':y='{cy}':d={n}:s={W}x{H}:fps={FPS},"
+                f"rotate=a='{angulo}':ow=iw:oh=ih:c=black")
     if efecto == "zoom_in_lento":
-        z, x, y = f"1+0.08*on/{n}", cx, cy
+        z, x, y = f"1+0.08*{ease}", cx, cy
     elif efecto == "zoom_in":
-        z, x, y = f"1+0.15*on/{n}", cx, cy
+        z, x, y = f"1+0.15*{ease}", cx, cy
     elif efecto == "zoom_out":
-        z, x, y = f"1.15-0.15*on/{n}", cx, cy
+        z, x, y = f"1.15-0.15*{ease}", cx, cy
     elif efecto == "zoom_out_lento":
-        z, x, y = f"1.08-0.08*on/{n}", cx, cy
+        z, x, y = f"1.08-0.08*{ease}", cx, cy
     elif efecto == "paneo_der":
-        z, x, y = "1.15", f"(iw-iw/zoom)*on/{n}", cy
+        z, x, y = "1.15", f"(iw-iw/zoom)*{ease}", cy
+    elif efecto == "paneo_izq":
+        z, x, y = "1.15", f"(iw-iw/zoom)*(1-{ease})", cy
+    elif efecto == "paneo_arriba":
+        z, x, y = "1.15", cx, f"(ih-ih/zoom)*(1-{ease})"
+    elif efecto == "paneo_abajo":
+        z, x, y = "1.15", cx, f"(ih-ih/zoom)*{ease}"
     elif efecto == "paneo_rapido":
-        z, x, y = "1.25", f"(iw-iw/zoom)*on/{n}", cy
+        z, x, y = "1.25", f"(iw-iw/zoom)*{ease}", cy
     else:  # ninguno
         z, x, y = "1", "0", "0"
     return f"zoompan=z='{z}':x='{x}':y='{y}':d={n}:s={W}x{H}:fps={FPS}"
+
+
+EFECTOS = {"ninguno", "zoom_in_lento", "zoom_in", "zoom_out", "zoom_out_lento", "paneo_der", "paneo_izq",
+           "paneo_arriba", "paneo_abajo", "paneo_rapido", "deriva"}
+ANIMACIONES = {"ninguna", "fade", "golpe", "palabra_por_palabra"}
+
+
+def avisos_guia(guia):
+    """Nombres que el render no conoce. No se detiene (las guías viejas siguen saliendo), pero se avisa
+    de qué se usará en su lugar, para que un error de escritura no pase desapercibido."""
+    avisos = []
+    for e in guia["escenas"]:
+        donde = f"Escena {e.get('id')}"
+        if e.get("efecto", "ninguno") not in EFECTOS:
+            avisos.append(f"{donde}: efecto «{e['efecto']}» no existe, queda imagen fija (ninguno)")
+        for campo, defecto in (("transicion_salida", "fade"), ("transicion_interna", "dissolve")):
+            tr = e.get(campo)
+            if tr and tr.get("tipo") not in XFADE:
+                avisos.append(f"{donde}: {campo} «{tr.get('tipo')}» no existe, se usa {defecto}")
+        for tx in e.get("textos", []):
+            if tx.get("animacion", "ninguna") not in ANIMACIONES:
+                avisos.append(f"{donde}: animación «{tx['animacion']}» no existe, se muestra sin animación")
+    return avisos
+
+
+# ─────────────────────────── estilo (viñeta / grano) ───────────────────────────
+
+def filtros_estilo(guia, proj):
+    """Filtros globales opcionales (guia.json: "lut"/"vineta"/"grano", igual de opt-in que "lufs")."""
+    out = []
+    if guia.get("lut"):  # archivo .cube relativo al proyecto: mismo tono de color en todas las escenas
+        out.append(f"lut3d=file='{os.path.join(proj, guia['lut'])}'")
+    if guia.get("vineta"):
+        out.append("vignette")
+    if guia.get("grano"):
+        out.append("noise=alls=6:allf=t+u")
+    return out
 
 
 # ─────────────────────────── texto ───────────────────────────
@@ -197,7 +253,9 @@ def render_escena(p, guia, proj, tmp, idx):
     textos = filtros_texto(p, guia, proj, tmp)
     imgs = [os.path.join(proj, i) for i in (esc.get("imagenes") or [])]
     efecto = esc.get("efecto", "ninguno")
-    cola_txt = ("," + ",".join(textos)) if textos else ""
+    # estilo (viñeta/grano) va antes del texto, para que el texto quede nítido encima
+    estilo_y_texto = filtros_estilo(guia, proj) + textos
+    cola_txt = ("," + ",".join(estilo_y_texto)) if estilo_y_texto else ""
 
     if not imgs:  # fondo negro + texto
         cmd = ["ffmpeg", "-y", "-f", "lavfi",
@@ -363,6 +421,9 @@ def main():
 
     ret = guia.get("voz_retraso", 0.3)
     pausa = guia.get("pausa_entre_escenas", 0.3)
+
+    for aviso in avisos_guia(guia):
+        log(f"⚠️  {aviso}")
 
     # 1. Plan: duración de cada escena según su voz
     log("📏 Midiendo audios...")

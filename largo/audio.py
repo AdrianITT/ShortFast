@@ -1,4 +1,5 @@
 """Mezcla de audio: voces en su lugar + música con volumen por escena."""
+import json
 import os
 
 
@@ -63,4 +64,25 @@ class MezclaAudio:
         salida = os.path.join(tmp, "audio.wav")
         self.ffmpeg.ejecutar(cmd + ["-filter_complex", ";".join(fc), "-map", "[out]",
                                     "-t", f"{total:.3f}", "-c:a", "pcm_s16le", salida])
+        return salida
+
+    def normalizar(self, audio, tmp):
+        """Lleva el volumen integrado a `guia.lufs` con loudnorm en dos pasadas (copiado de render.py).
+        Si `lufs` es None o 0 no hace nada. Devuelve la ruta del audio a usar."""
+        lufs = self.guia.lufs
+        if not lufs:
+            return audio
+        objetivo = f"loudnorm=I={lufs}:TP=-1.5:LRA=11"
+        r = self.ffmpeg.ejecutar(["ffmpeg", "-hide_banner", "-i", audio, "-af", objetivo + ":print_format=json",
+                                  "-f", "null", "-"])
+        medido = json.loads(r.stderr[r.stderr.rindex("{"):r.stderr.rindex("}") + 1])
+        if medido["input_i"] in ("-inf", "inf"):  # audio en silencio: no hay nada que normalizar
+            return audio
+        self.ffmpeg.registro(f"🔊 Volumen medido: {float(medido['input_i']):.1f} LUFS → objetivo {lufs} LUFS")
+        salida = os.path.join(tmp, "audio_norm.wav")
+        self.ffmpeg.ejecutar(["ffmpeg", "-y", "-i", audio, "-af",
+                              f"{objetivo}:measured_I={medido['input_i']}:measured_TP={medido['input_tp']}:"
+                              f"measured_LRA={medido['input_lra']}:measured_thresh={medido['input_thresh']}:"
+                              f"offset={medido['target_offset']}:linear=true,aresample=48000",
+                              "-c:a", "pcm_s16le", salida])
         return salida

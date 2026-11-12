@@ -19,13 +19,24 @@ class Efectos:
     @staticmethod
     def zoompan(efecto, n, ancho, alto, fps):
         cx, cy = "iw/2-(iw/zoom/2)", "ih/2-(ih/zoom/2)"
+        # ease-in-out (smoothstep) en vez de on/n lineal: el movimiento arranca y frena suave, no en seco
+        ease = f"(3*pow(on/{n},2)-2*pow(on/{n},3))"
+        if efecto == "deriva":  # ligera rotación de cámara, sin zoom ni paneo (look "cámara en mano")
+            dur = n / fps
+            t_ease = f"(3*pow(t/{dur:.4f},2)-2*pow(t/{dur:.4f},3))"
+            angulo = f"(-1+2*{t_ease})*0.015"  # ±0.86° a lo largo de la escena
+            return (f"zoompan=z='1.06':x='{cx}':y='{cy}':d={n}:s={ancho}x{alto}:fps={fps},"
+                    f"rotate=a='{angulo}':ow=iw:oh=ih:c=black")
         z, x, y = {
-            "zoom_in_lento": (f"1+0.08*on/{n}", cx, cy),
-            "zoom_in": (f"1+0.15*on/{n}", cx, cy),
-            "zoom_out": (f"1.15-0.15*on/{n}", cx, cy),
-            "zoom_out_lento": (f"1.08-0.08*on/{n}", cx, cy),
-            "paneo_der": ("1.15", f"(iw-iw/zoom)*on/{n}", cy),
-            "paneo_rapido": ("1.25", f"(iw-iw/zoom)*on/{n}", cy),
+            "zoom_in_lento": (f"1+0.08*{ease}", cx, cy),
+            "zoom_in": (f"1+0.15*{ease}", cx, cy),
+            "zoom_out": (f"1.15-0.15*{ease}", cx, cy),
+            "zoom_out_lento": (f"1.08-0.08*{ease}", cx, cy),
+            "paneo_der": ("1.15", f"(iw-iw/zoom)*{ease}", cy),
+            "paneo_izq": ("1.15", f"(iw-iw/zoom)*(1-{ease})", cy),
+            "paneo_arriba": ("1.15", cx, f"(ih-ih/zoom)*(1-{ease})"),
+            "paneo_abajo": ("1.15", cx, f"(ih-ih/zoom)*{ease}"),
+            "paneo_rapido": ("1.25", f"(iw-iw/zoom)*{ease}", cy),
         }.get(efecto, ("1", "0", "0"))
         return f"zoompan=z='{z}':x='{x}':y='{y}':d={n}:s={ancho}x{alto}:fps={fps}"
 
